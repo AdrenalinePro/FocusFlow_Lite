@@ -1,0 +1,33 @@
+# FocusFlow Lite — 笔记本摄像头相关模块依赖
+# =============================================
+# 安装: pip install -r requirements_camera.txt
+#
+# 适用模块:
+#   - eye_tracker.py      (头部姿态检测)
+#   - screen_monitor.py   (屏幕内容监控)
+#   - camera_demo.py      (集成演示)
+
+# ---- 核心依赖 ----
+
+# 计算机视觉 & 图像处理
+opencv-python>=4.8.0        # 摄像头采集 + solvePnP
+mediapipe>=0.10.0            # 面部关键点检测 (468 landmarks)
+numpy>=1.24.0                # 数值计算
+
+# 屏幕截图 & 图像处理
+mss>=9.0.0                   # 高速屏幕截图 (比 PIL.ImageGrab 快)
+Pillow>=10.0.0               # 图像缩放/编码/格式转换
+imagehash>=4.3.0             # 感知哈希 (pHash 变化检测)
+
+# API 调用
+requests>=2.31.0             # HTTP 调用 minimax vision API
+
+# ---- GUI 集成 (可选) ----
+# 如果只需要命令行运行，可跳过 PyQt5
+# PyQt5>=5.15.0
+
+# ---- 工具 ----
+# PyWavelets 是 imagehash 的依赖 (phash 需要)
+PyWavelets>=1.4.0
+# scipy 是 imagehash 可选依赖
+scipy>=1.10.0

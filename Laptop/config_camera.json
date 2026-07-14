@@ -1,0 +1,47 @@
+{
+    "_comment": "FocusFlow Lite — 摄像头模块配置文件 (D 同学维护)",
+
+    "eye_tracker": {
+        "camera_id": 0,
+        "fps": 15,
+        "yaw_range": [-30.0, 30.0],
+        "pitch_range": [-20.0, 20.0],
+        "min_face_confidence": 0.5,
+        "focus_hold_time": 1.0,
+        "_note": "yaw=偏航(左右), pitch=俯仰(上下), focus_hold_time=状态切换防抖时间(秒)"
+    },
+
+    "screen_monitor": {
+        "interval": 30,
+        "change_threshold": 0.95,
+        "enable_api": true,
+        "resize_to": [512, 512],
+        "_note": "interval=截图间隔(秒), change_threshold=pHash相似度阈值(低于此值触发API)"
+    },
+
+    "minimax_api": {
+        "endpoint": "https://api.minimaxi.chat/v1/text/chatcompletion_v2",
+        "model": "MiniMax-Text-01",
+        "timeout": 10,
+        "max_retries": 2,
+        "api_key_env": "MINIMAX_API_KEY",
+        "_note": "API Key 通过环境变量 MINIMAX_API_KEY 传入，不要写死在配置文件里"
+    },
+
+    "whitelist": [
+        "vscode", "visual studio code",
+        "pycharm", "intellij", "clion", "goland",
+        "word", "pages", "wps",
+        "pdf", "adobe acrobat", "zotero",
+        "zoom", "腾讯会议", "teams", "飞书",
+        "terminal", "cmd", "powershell",
+        "jupyter", "notion", "obsidian", "typora"
+    ],
+
+    "ble_data_format": {
+        "_note": "笔记本通过 BLE 发送给 UNO Q 的数据格式 (8维)",
+        "f_EYE": ["yaw", "pitch", "is_focused", "state_duration", "confidence"],
+        "f_SCREEN": ["state_code", "confidence", "app_category"],
+        "encoding": "逗号分隔的浮点数字符串, 如 '5.2,-3.1,1,12.5,0.92,1.0,0.88,3'"
+    }
+}
