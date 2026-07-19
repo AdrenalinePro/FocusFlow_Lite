@@ -14,13 +14,15 @@
 
 | TFT 引脚 | UNO Q 引脚 | 说明 |
 |---|---|---|
+| VCC | 3.3V | 电源输入 |
+| GND | JSPI pin 6 | 接地输入 |
 | CS | D10 | 片选 |
+| RESET | D8 | **独立 GPIO**（不能用 JSPI pin 5 NRST） |
 | DC | D9 | 数据/命令 |
-| MOSI | ICSP pin 4 (D11) | 主出从入 |
-| SCK | ICSP pin 3 (D13) | 时钟 |
-| RST | D8 | **独立 GPIO**（不能用 ICSP pin 5 NRST） |
+| MOSI | D11 | 主出从入 |
+| SCK | D13 | 时钟 |
 | LED | D7 | 背光 PWM |
-| MISO | ICSP pin 1 (D12) | 未使用，仅占位 |
+| MISO | JSPI pin 1 | 未使用，仅占位 |
 
 ## 项目结构
 
