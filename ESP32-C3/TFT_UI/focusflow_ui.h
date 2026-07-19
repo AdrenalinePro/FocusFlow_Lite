@@ -10,6 +10,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include "focus_chinese_font.h"
+#include "break_image.h"
 
 // ── Screen (portrait orientation) ──
 #define SCREEN_W  240

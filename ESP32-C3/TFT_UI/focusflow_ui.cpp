@@ -153,40 +153,12 @@ void FocusFlowUI::showAlertScreen(const char* screenLabel) {
 
 void FocusFlowUI::showBreakScreen(uint32_t breakRemainingSec,
                                   uint32_t nextSessionSec) {
-    tft.fillScreen(C_BG);
-    drawHeader("休息时间", C_HEADER_BREAK);
+    // Full-screen image — replaces original break UI
+    // Parameters retained for API compatibility, unused
+    (void)breakRemainingSec;
+    (void)nextSessionSec;
 
-    int y = CONTENT_Y + 4;   // 56
-
-    // Card 1: 休息剩余 — big timer
-    drawCard(y, BAR_ROW_H + 4, C_CARD_BG);
-    {
-        drawCNString(MARGIN_X + 6, y + 8, "休息剩余", C_TEXT_DIM, C_CARD_BG);
-        char timeBuf[8];
-        fmtTime(timeBuf, breakRemainingSec);
-        // centered big time
-        int tx = SCREEN_W / 2 - 36;
-        tft.setCursor(tx, y + 30);
-        tft.setTextColor(C_BREAK, C_CARD_BG);
-        tft.setTextSize(3);
-        tft.print(timeBuf);
-    }
-    y += BAR_ROW_H + 4 + GAP;   // 134
-
-    // Card 2: 下一段学习 + duration
-    drawCard(y, ROW_H, C_CARD_BG);
-    {
-        char timeBuf[8];
-        fmtTime(timeBuf, nextSessionSec);
-        drawDataRow(y, "下一段学习", timeBuf, C_TEXT_DIM, C_TEXT);
-    }
-    y += ROW_H + GAP;   // 196
-
-    // Card 3: 好好休息一下吧
-    drawCard(y, ROW_H, C_CARD_BG);
-    drawCNString(MARGIN_X + 6, y + 14, "好好休息一下吧", C_TEXT, C_CARD_BG);
-
-    drawBottom("休息中", C_HEADER_BREAK);
+    tft.drawRGBBitmap(0, 0, break_image, BREAK_IMG_W, BREAK_IMG_H);
     _curScreen = SCREEN_BREAK;
 }
 
