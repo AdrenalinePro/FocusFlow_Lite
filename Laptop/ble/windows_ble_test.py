@@ -3,6 +3,8 @@
 Examples (run from the repository root)::
 
     python ble/windows_ble_test.py --scan-only
+    # 默认按 FocusFlow service UUID 过滤；如果设备名不对也能扫到：
+    python ble/windows_ble_test.py --scan-only --scan-by-uuid all
     python ble/windows_ble_test.py --device UNO-Q-FF01 --duration 30
     python ble/windows_ble_test.py --device UNO-Q-FF01 --stream-eye --stream-screen
     python ble/windows_ble_test.py --device UNO-Q-FF01 --log-file ble_test.log --verbose
@@ -27,6 +29,7 @@ import argparse
 import asyncio
 import json
 import logging
+import re
 import sys
 import time
 from collections import Counter
@@ -42,8 +45,10 @@ if __package__ in {None, ""}:
         BleConnectionState,
         WindowsBLEClient,
     )
+    from ble.windows_ble_protocol import SERVICE_UUID  # type: ignore
 else:
     from .windows_ble_client import BleClientConfig, BleConnectionState, WindowsBLEClient
+    from .windows_ble_protocol import SERVICE_UUID
 
 
 CONSOLE_FORMAT = "%(asctime)s.%(msecs)03d [%(levelname)s] %(message)s"
@@ -141,6 +146,16 @@ class TestSummary:
             LOGGER.debug("TX %s (%d 字节)", msg_type, len(payload))
 
 
+_UUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def _is_valid_uuid(value: str) -> bool:
+    return bool(_UUID_RE.match(value))
+
+
 def configure_logging(verbose: bool, log_file: Optional[Path]) -> None:
     """Reset root loggers and attach a console handler + optional file handler."""
 
@@ -169,25 +184,81 @@ def configure_logging(verbose: bool, log_file: Optional[Path]) -> None:
     logging.getLogger("bleak").setLevel(logging.DEBUG if verbose else logging.WARNING)
 
 
-async def scan_devices(timeout: float) -> int:
+async def scan_devices(timeout: float, service_uuid: Optional[str] = None) -> int:
+    """Run a passive BLE scan and log every advertisement we see.
+
+    ``service_uuid`` enables bleak's native filter so the scanner only
+    reports devices that advertise the FocusFlow service UUID.  This is
+    far more reliable than matching by name on Windows — the device may
+    show up as the controller's hostname (e.g. ``arduino-UNO``) instead
+    of ``UNO-Q-FF01`` when the Linux adapter's ``Alias`` property is
+    not in sync with the GATT application name.  Pass ``None`` to scan
+    every device (the default for ``--scan-by-uuid all`` / ``none``).
+    """
+
+    if service_uuid and service_uuid.lower() in {"all", "none", "off"}:
+        service_uuid = None
+
+    if service_uuid and not _is_valid_uuid(service_uuid):
+        LOGGER.error("--scan-by-uuid 不是合法的 UUID: %r", service_uuid)
+        return 2
+
     try:
         from bleak import BleakScanner
     except ImportError:
         LOGGER.error("bleak 未安装，请执行: python -m pip install -r ble\\requirements-windows.txt")
         return 2
 
-    LOGGER.info("开始扫描 BLE 设备，超时 %.1f 秒...", timeout)
+    if service_uuid:
+        LOGGER.info(
+            "开始扫描 BLE 设备（按 ServiceUUID=%s 过滤），超时 %.1f 秒...",
+            service_uuid, timeout,
+        )
+    else:
+        LOGGER.info("开始扫描 BLE 设备，超时 %.1f 秒...", timeout)
     started = time.monotonic()
-    devices = await BleakScanner.discover(timeout=timeout)
+    try:
+        devices = await BleakScanner.discover(
+            timeout=timeout, service_uuids=[service_uuid] if service_uuid else None,
+        )
+    except TypeError:
+        # Older bleak versions don't accept ``service_uuids``; fall back
+        # to a plain scan and filter the results client-side.
+        devices = await BleakScanner.discover(timeout=timeout)
     elapsed = time.monotonic() - started
     if not devices:
-        LOGGER.warning("未发现 BLE 设备（耗时 %.2fs）。请确认 UNO Q 正在广播，并检查 Windows 蓝牙适配器。", elapsed)
+        if service_uuid:
+            LOGGER.warning(
+                "未发现广播 %s 的 BLE 设备（耗时 %.2fs）。\n"
+                "  - 确认 UNO Q 端的 LEAdvertisement 已注册：日志里应出现 "
+                "'LEAdvertisement registered on /org/bluez/hciN'。\n"
+                "  - 确认 Linux 蓝牙已 power on 且非 BR/EDR-only 模式 "
+                "（/etc/bluetooth/main.conf 中 ControllerMode = le）。\n"
+                "  - 拿一台手机开 nRF Connect 扫描，对照看 UNO Q 是否能被发现。",
+                service_uuid, elapsed,
+            )
+        else:
+            LOGGER.warning(
+                "未发现 BLE 设备（耗时 %.2fs）。请确认 UNO Q 正在广播，"
+                "并检查 Windows 蓝牙适配器。", elapsed,
+            )
         return 1
     LOGGER.info("扫描完成（耗时 %.2fs），共发现 %d 个设备:", elapsed, len(devices))
     for device in devices:
         rssi = getattr(device, "rssi", None)
         rssi_text = "RSSI=%s dBm" % rssi if rssi is not None else "RSSI=未知"
-        LOGGER.info("  - %-24s %s  [%s]", device.name or "<无名称>", device.address, rssi_text)
+        metadata = getattr(device, "metadata", None)
+        svc_text = ""
+        if metadata is not None:
+            uuids = getattr(metadata, "uuids", None) or []
+            if uuids:
+                short = ", ".join(u.split("-", 1)[0].lower() for u in uuids[:3])
+                suffix = "" if len(uuids) <= 3 else " (+%d)" % (len(uuids) - 3)
+                svc_text = "  svc=[%s%s]" % (short, suffix)
+        LOGGER.info(
+            "  - %-24s %s  [%s]%s",
+            device.name or "<无名称>", device.address, rssi_text, svc_text,
+        )
     return 0
 
 
@@ -436,6 +507,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", default="UNO-Q-FF01", help="设备名或 Windows BLE 地址")
     parser.add_argument("--scan-only", action="store_true", help="只扫描设备，不建立连接")
     parser.add_argument("--scan-timeout", type=float, default=10.0, help="扫描超时秒数，默认 10")
+    parser.add_argument(
+        "--scan-by-uuid", default=SERVICE_UUID,
+        help="按 ServiceUUID 过滤扫描结果（默认 = FocusFlow service UUID）。"
+             "传 'all' 或 'none' 关闭过滤。",
+    )
     parser.add_argument("--connect-timeout", type=float, default=10.0, help="单次连接超时秒数，默认 10")
     parser.add_argument("--duration", type=float, default=30.0, help="连接后运行秒数；0 表示持续运行")
     parser.add_argument("--no-sample-messages", action="store_true", help="不发送 eye/screen/rest 样例，只测试同步和心跳")
@@ -477,7 +553,7 @@ def main() -> int:
         parser.error(str(exc))
     configure_logging(args.verbose, args.log_file)
     if args.scan_only:
-        return asyncio.run(scan_devices(args.scan_timeout))
+        return asyncio.run(scan_devices(args.scan_timeout, args.scan_by_uuid))
     try:
         return asyncio.run(run_test(args))
     except KeyboardInterrupt:

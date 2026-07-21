@@ -15,6 +15,7 @@ from .windows_ble_protocol import (
     BLEMessage,
     DOWNLINK_TYPES,
     RX_CHARACTERISTIC_UUID,
+    SERVICE_UUID,
     TX_CHARACTERISTIC_UUID,
     ProtocolError,
     encode_message,
@@ -211,13 +212,68 @@ class WindowsBLEClient:
         self._set_state(BleConnectionState.STOPPED)
 
     async def _resolve_device(self, scanner: Any) -> Any:
+        """Resolve the configured device name/address to a bleak handle.
+
+        Windows's WinRT scanner is unreliable for peripheral-mode-only
+        devices when no advertisement filter is supplied — the
+        ``UNO-Q-FF01`` LEAdvertisement we register on the Linux side is
+        exactly that kind of device, so a plain ``find_device_by_name``
+        often times out even though ``BleakScanner.discover`` with a
+        ``service_uuids`` filter finds it instantly.  We therefore:
+
+        1. Try a name match **with** the FocusFlow service UUID as an
+           advertisement filter (the form that actually works on WinRT).
+        2. If that fails, run a service-UUID-filtered discovery and pick
+           the first candidate.  This covers the case where the Linux
+           adapter's ``Alias`` property is something other than
+           ``UNO-Q-FF01`` (e.g. ``arduino-UNO``) — the LEAdvertisement's
+           ``LocalName`` is what we want, but ``Alias`` wins on some
+           BlueZ builds.
+        """
+
         device = self.config.device.strip()
         if WINDOWS_ADDRESS_RE.match(device):
             return device
-        found = await scanner.find_device_by_name(device, timeout=self.config.scan_timeout)
-        if found is None:
+
+        # --- attempt 1: name match, filtered by FocusFlow service UUID ---
+        try:
+            found = await scanner.find_device_by_name(
+                device, timeout=self.config.scan_timeout,
+                service_uuids=[SERVICE_UUID],
+            )
+            if found is not None:
+                return found
+        except TypeError:
+            # bleak < 0.21 / backends without service_uuids support.
+            found = await scanner.find_device_by_name(
+                device, timeout=self.config.scan_timeout,
+            )
+            if found is not None:
+                return found
             raise ConnectionError("未找到 BLE 设备: %s" % device)
-        return found
+
+        # --- attempt 2: any device advertising the FocusFlow service UUID ---
+        try:
+            candidates = await scanner.discover(
+                timeout=self.config.scan_timeout,
+                service_uuids=[SERVICE_UUID],
+            )
+        except TypeError:
+            candidates = await scanner.discover(timeout=self.config.scan_timeout)
+        for candidate in candidates:
+            metadata = getattr(candidate, "metadata", None)
+            uuids = (getattr(metadata, "uuids", None) or []) if metadata else []
+            if any(str(u).lower() == SERVICE_UUID.lower() for u in uuids):
+                if candidate.name and candidate.name != device:
+                    self.logger.info(
+                        "未按名称 %r 匹配到设备，但 %s 正在广播 %s，"
+                        "已改用此设备（通常是 Linux adapter 的 Alias "
+                        "覆盖了 LEAdvertisement 的 LocalName）",
+                        device, candidate.address, SERVICE_UUID,
+                    )
+                return candidate
+
+        raise ConnectionError("未找到 BLE 设备: %s" % device)
 
     def _on_disconnected(self, _client: Any = None) -> None:
         self.connected = False
@@ -241,9 +297,12 @@ class WindowsBLEClient:
             self._last_heartbeat = time.monotonic()
         self._emit("message", message)
         if message.type == "error":
-            data = message.data
-            self._emit("error", data.get("message", "UNO Q returned an error"))
-            if data.get("fatal"):
+            # The application-layer ``error`` message is delivered through
+            # ``_on_message`` (and from there to ``error_signal`` in the Qt
+            # adapter) so subscribers do not see the same failure twice.
+            # We only keep the fatal side-effect here, since disconnecting is
+            # a transport concern that lives below the Qt signal layer.
+            if message.data.get("fatal"):
                 self._on_disconnected(self.client)
 
     async def _cleanup_connection(self) -> None:
@@ -265,8 +324,22 @@ class WindowsBLEClient:
 
     async def _heartbeat_loop(self) -> None:
         while self.connected and self._stop_event and not self._stop_event.is_set():
-            await self.send_heartbeat()
-            await asyncio.sleep(self.config.heartbeat_interval)
+            # send_heartbeat() can raise if bleak reports a write failure that
+            # wasn't yet surfaced through the disconnected callback.  Treat any
+            # exception as a lost link so run_forever re-enters its reconnect
+            # loop instead of letting the task die silently.
+            try:
+                await self.send_heartbeat()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self._emit("error", "BLE 心跳发送失败: %s" % exc)
+                self._on_disconnected(self.client)
+                return
+            try:
+                await asyncio.sleep(self.config.heartbeat_interval)
+            except asyncio.CancelledError:
+                return
             if time.monotonic() - self._last_heartbeat > self.config.heartbeat_timeout:
                 self._emit("error", "BLE 心跳超时，正在重连")
                 self._on_disconnected(self.client)

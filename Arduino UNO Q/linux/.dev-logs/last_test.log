@@ -1,0 +1,44 @@
+# /usr/bin/python3 /home/arduino/focusble/linux/linux_ble_test.py --duration 8.0 --connect-timeout 10
+# started=1784578883.087392 duration=8.0
+----- STDOUT -----
+[20:21:23.930] [INFO  ] 启动 UNO Q BLE 服务器 (adapter=/org/bluez/hci0, name=UNO-Q-FF01)
+[20:21:23.931] [EVT   ] 正在注册 GATT application + 开始广播…
+[20:21:23.931] [EVT   ] server state -> starting
+[20:21:23.990] [EVT   ] server state -> advertising
+[20:21:23.991] [TX →  ] focus_score      seq=0    size=84   score=85 state=focused
+[20:21:23.992] [TX →  ] device_status    seq=1    size=171  eeg_connected=false eeg_battery=-1 wristband_connected=false ... (5 fields)
+[20:21:24.032] [OK    ] GATT application 已注册；等待 Windows 客户端订阅 Notify…
+[20:21:24.993] [TX →  ] focus_score      seq=2    size=84   score=85 state=focused
+[20:21:25.996] [TX →  ] focus_score      seq=3    size=84   score=85 state=focused
+[20:21:26.998] [TX →  ] focus_score      seq=4    size=84   score=85 state=focused
+[20:21:27.001] [TX →  ] focus_score      seq=5    size=84   score=85 state=focused
+[20:21:29.004] [TX →  ] focus_score      seq=6    size=84   score=85 state=focused
+[20:21:30.005] [TX →  ] focus_score      seq=7    size=84   score=85 state=focused
+[20:21:31.008] [TX →  ] focus_score      seq=8    size=84   score=85 state=focused
+[20:21:32.010] [TX →  ] focus_score      seq=9    size=84   score=85 state=focused
+[20:21:33.012] [TX →  ] focus_score      seq=10   size=85   score=85 state=focused
+[20:21:34.014] [TX →  ] focus_score      seq=11   size=85   score=85 state=focused
+[20:21:34.121] [FAIL  ] 未在 10.0s 内等到 Windows 客户端订阅 Notify
+[20:21:34.121] [FAIL  ] 在 Windows 端确认：python windows\\windows_ble_test.py --device UNO-Q-FF01 --scan-only
+[20:21:34.121] [INFO  ] 运行 8s 后自动结束；按 Ctrl+C 中断
+[20:21:35.017] [TX →  ] focus_score      seq=12   size=85   score=85 state=focused
+[20:21:36.020] [TX →  ] focus_score      seq=13   size=85   score=85 state=focused
+[20:21:37.023] [TX →  ] focus_score      seq=14   size=85   score=85 state=focused
+[20:21:38.026] [TX →  ] focus_score      seq=15   size=85   score=85 state=focused
+[20:21:39.029] [TX →  ] focus_score      seq=16   size=85   score=85 state=focused
+[20:21:40.032] [TX →  ] focus_score      seq=17   size=85   score=85 state=focused
+[20:21:41.034] [TX →  ] focus_score      seq=18   size=85   score=85 state=focused
+[20:21:42.037] [TX →  ] focus_score      seq=19   size=85   score=85 state=focused
+[20:21:42.130] [EVT   ] server state -> stopped
+[20:21:42.130] [INFO  ] ========== BLE 测试汇总 ==========
+[20:21:42.130] [INFO  ] 客户端订阅 Notify: False
+[20:21:42.131] [INFO  ] 上行消息统计 (RX): 无
+[20:21:42.131] [INFO  ] 下行消息统计 (TX): {'focus_score': 19, 'device_status': 1}
+[20:21:42.131] [INFO  ] heartbeat: 收到 0 条上行、回了 0 条 echo
+[20:21:42.131] [INFO  ] 错误数量: 0
+[20:21:42.131] [INFO  ] ==================================
+[20:21:42.131] [FAIL  ] RESULT: FAIL（Windows 客户端从未订阅 Notify，无法确认双向链路）
+
+----- STDERR -----
+
+----- rc=1 -----

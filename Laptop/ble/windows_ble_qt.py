@@ -93,6 +93,11 @@ if QThread is not None:
                 self.heartbeat_signal.emit(data)
             elif message.type == "sync_response":
                 self.sync_response_signal.emit(data)
+            elif message.type == "error":
+                # Surface application-layer errors through the dedicated
+                # ``error_signal`` so GUI handlers can show a notification
+                # without having to filter ``message_signal`` themselves.
+                self.error_signal.emit(data.get("message", "UNO Q returned an error"))
 
         def _submit(self, coroutine: Any) -> Any:
             if self._loop is None or self._client is None or not self.isRunning():
@@ -102,10 +107,22 @@ if QThread is not None:
         def stop(self) -> None:
             """Request shutdown; call ``wait`` if the application is exiting."""
             self._stop_requested = True
+            future = None
             if self._loop is not None and self._client is not None:
-                asyncio.run_coroutine_threadsafe(self._client.stop(), self._loop)
-            if self.isRunning():
-                self.wait(5000)
+                future = asyncio.run_coroutine_threadsafe(self._client.stop(), self._loop)
+            # 10 s gives the bleak disconnect + asyncio cleanup enough time to
+            # finish on slow Windows stacks; the previous 5 s budget caused
+            # ``QThread.wait`` to return before ``run_forever`` had unwound.
+            if self.isRunning() and not self.wait(10000):
+                import logging
+                logging.getLogger(__name__).warning(
+                    "BLE thread did not stop within 10s; forcing shutdown")
+                if future is not None:
+                    try:
+                        future.result(timeout=2)
+                    except Exception:
+                        logging.getLogger(__name__).debug(
+                            "BLE stop coroutine did not complete", exc_info=True)
 
         def send_eye_data(self, yaw: float, pitch: float, is_focused: int,
                           state_duration: float, confidence: float) -> Any:

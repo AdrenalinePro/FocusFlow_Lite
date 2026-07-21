@@ -1,0 +1,10 @@
+# FocusFlow UNO Q Linux BLE server runtime dependencies.
+#
+# The Linux side is the BLE GATT Server.  We talk to BlueZ through
+# dbus-fast, which is a pure-Python implementation of the D-Bus
+# protocol and only depends on the system BlueZ daemon (bluetoothd)
+# and the libdbus system library.
+dbus-fast>=1.83.0
+# jeepney is not strictly required at runtime (we use dbus-fast) but
+# it is a useful debug / fallback tool and is recommended.
+jeepney>=0.9.0
