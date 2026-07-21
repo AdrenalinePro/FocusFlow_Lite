@@ -1,0 +1,4 @@
+# Windows BLE client dependencies
+bleak>=0.21.0
+PyQt5>=5.15.0
+
