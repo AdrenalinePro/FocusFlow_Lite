@@ -1,0 +1,155 @@
+{
+  "warning": "Preliminary one-person baseline: only three recordings were available. Overlapping windows are correlated, although entire sessions were kept separate.",
+  "split_policy": "R1 train / R2 validation / R3 test; no session mixing",
+  "dataset": {
+    "train": {
+      "file": "P01_R1_visual.jsonl",
+      "raw_feature_rows": 726,
+      "usable_rows": 474,
+      "focus_rows": 275,
+      "distraction_rows": 199,
+      "excluded_invalid": 0,
+      "excluded_unlabeled": 204,
+      "excluded_transition_guard": 48
+    },
+    "validation": {
+      "file": "P01_R2_audio_partial.jsonl",
+      "raw_feature_rows": 338,
+      "usable_rows": 170,
+      "focus_rows": 110,
+      "distraction_rows": 60,
+      "excluded_invalid": 88,
+      "excluded_unlabeled": 47,
+      "excluded_transition_guard": 33
+    },
+    "test": {
+      "file": "local_session_20260720_200415.jsonl",
+      "raw_feature_rows": 181,
+      "usable_rows": 93,
+      "focus_rows": 45,
+      "distraction_rows": 48,
+      "excluded_invalid": 44,
+      "excluded_unlabeled": 20,
+      "excluded_transition_guard": 24
+    }
+  },
+  "training": {
+    "seed": 42,
+    "best_epoch": 12,
+    "best_validation_loss": 0.7452433109283447,
+    "epochs_completed": 92,
+    "pos_weight": 1.3819095477386936,
+    "history": [
+      {
+        "epoch": 1,
+        "train_loss": 0.8108028322458267,
+        "validation_loss": 0.7854229807853699
+      },
+      {
+        "epoch": 20,
+        "train_loss": 0.711414098739624,
+        "validation_loss": 0.7592769861221313
+      },
+      {
+        "epoch": 40,
+        "train_loss": 0.6802509799599648,
+        "validation_loss": 0.8078490495681763
+      },
+      {
+        "epoch": 60,
+        "train_loss": 0.6948184594511986,
+        "validation_loss": 0.8413516879081726
+      },
+      {
+        "epoch": 80,
+        "train_loss": 0.6787440478801727,
+        "validation_loss": 0.8762224316596985
+      }
+    ]
+  },
+  "selected_threshold_from_validation_only": 0.555,
+  "train_at_selected_threshold": {
+    "threshold": 0.555,
+    "samples": 474,
+    "accuracy": 0.6603375527426161,
+    "balanced_accuracy": 0.6232526267702146,
+    "precision_distraction": 0.6610169491525424,
+    "recall_distraction": 0.39195979899497485,
+    "f1_distraction": 0.4921135646687697,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        235,
+        40
+      ],
+      [
+        121,
+        78
+      ]
+    ],
+    "roc_auc": 0.7154317039744176
+  },
+  "validation_at_selected_threshold": {
+    "threshold": 0.555,
+    "samples": 170,
+    "accuracy": 0.6764705882352942,
+    "balanced_accuracy": 0.6363636363636364,
+    "precision_distraction": 0.5454545454545454,
+    "recall_distraction": 0.5,
+    "f1_distraction": 0.5217391304347826,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        85,
+        25
+      ],
+      [
+        30,
+        30
+      ]
+    ],
+    "roc_auc": 0.6789393939393938
+  },
+  "test_at_selected_threshold": {
+    "threshold": 0.555,
+    "samples": 93,
+    "accuracy": 0.3978494623655914,
+    "balanced_accuracy": 0.4013888888888889,
+    "precision_distraction": 0.3888888888888889,
+    "recall_distraction": 0.2916666666666667,
+    "f1_distraction": 0.3333333333333333,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        23,
+        22
+      ],
+      [
+        34,
+        14
+      ]
+    ],
+    "roc_auc": 0.35370370370370374
+  },
+  "test_at_fixed_0_5": {
+    "threshold": 0.5,
+    "samples": 93,
+    "accuracy": 0.3763440860215054,
+    "balanced_accuracy": 0.37222222222222223,
+    "precision_distraction": 0.41379310344827586,
+    "recall_distraction": 0.5,
+    "f1_distraction": 0.4528301886792453,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        11,
+        34
+      ],
+      [
+        24,
+        24
+      ]
+    ],
+    "roc_auc": 0.35370370370370374
+  },
+  "onnx_verification": {
+    "max_absolute_probability_error_vs_pytorch": 5.960464477539063e-08,
+    "passed": true
+  }
+}

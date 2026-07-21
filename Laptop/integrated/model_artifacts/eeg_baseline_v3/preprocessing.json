@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "feature_order": [
+    "theta",
+    "alpha",
+    "beta",
+    "theta_beta",
+    "theta_alpha_beta"
+  ],
+  "label_mapping": {
+    "focus": 0,
+    "distraction": 1
+  },
+  "transition_guard_seconds": 5.0,
+  "raw_clip_quantiles": [
+    0.01,
+    0.99
+  ],
+  "raw_clip_lower": [
+    0.00856186356395483,
+    0.009380028583109379,
+    0.0736798420548439,
+    0.016093837097287178,
+    0.043402429670095444
+  ],
+  "raw_clip_upper": [
+    0.2653205096721649,
+    0.30579057335853577,
+    0.6319950222969055,
+    1.4020806550979614,
+    1.907143235206604
+  ],
+  "log1p_features": [
+    "theta_beta",
+    "theta_alpha_beta"
+  ],
+  "mean_after_clip_and_log": [
+    0.0692363977432251,
+    0.06145840138196945,
+    0.3888610303401947,
+    0.19575835764408112,
+    0.31206250190734863
+  ],
+  "std_after_clip_and_log": [
+    0.06152167543768883,
+    0.07144755125045776,
+    0.13021647930145264,
+    0.1894736886024475,
+    0.2603917121887207
+  ],
+  "distraction_probability_threshold": 0.55
+}

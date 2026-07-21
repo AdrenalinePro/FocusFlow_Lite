@@ -1,0 +1,160 @@
+{
+  "warning": "Preliminary one-person baseline: only three recordings were available. Overlapping windows are correlated, although entire sessions were kept separate.",
+  "split_policy": "R1 train / R2 validation / R3 test; no session mixing",
+  "dataset": {
+    "train": {
+      "file": "P01_R2_audio_partial.jsonl",
+      "raw_feature_rows": 338,
+      "usable_rows": 170,
+      "focus_rows": 110,
+      "distraction_rows": 60,
+      "excluded_invalid": 88,
+      "excluded_unlabeled": 47,
+      "excluded_transition_guard": 33
+    },
+    "validation": {
+      "file": "local_session_20260720_200415.jsonl",
+      "raw_feature_rows": 181,
+      "usable_rows": 93,
+      "focus_rows": 45,
+      "distraction_rows": 48,
+      "excluded_invalid": 44,
+      "excluded_unlabeled": 20,
+      "excluded_transition_guard": 24
+    },
+    "test": {
+      "file": "local_session_20260720_214422.jsonl",
+      "raw_feature_rows": 769,
+      "usable_rows": 333,
+      "focus_rows": 103,
+      "distraction_rows": 230,
+      "excluded_invalid": 344,
+      "excluded_unlabeled": 37,
+      "excluded_transition_guard": 55
+    }
+  },
+  "training": {
+    "seed": 42,
+    "best_epoch": 30,
+    "best_validation_loss": 0.7827943563461304,
+    "epochs_completed": 110,
+    "pos_weight": 1.8333333333333333,
+    "history": [
+      {
+        "epoch": 1,
+        "train_loss": 0.9000970125198364,
+        "validation_loss": 0.9803019762039185
+      },
+      {
+        "epoch": 20,
+        "train_loss": 0.8203253149986267,
+        "validation_loss": 0.8219252824783325
+      },
+      {
+        "epoch": 40,
+        "train_loss": 0.7628171245257059,
+        "validation_loss": 0.8264210820198059
+      },
+      {
+        "epoch": 60,
+        "train_loss": 0.7341593106587728,
+        "validation_loss": 0.879405677318573
+      },
+      {
+        "epoch": 80,
+        "train_loss": 0.7583485841751099,
+        "validation_loss": 0.8974993228912354
+      },
+      {
+        "epoch": 100,
+        "train_loss": 0.7019712527592977,
+        "validation_loss": 0.9054827094078064
+      }
+    ]
+  },
+  "selected_threshold_from_validation_only": 0.605,
+  "train_at_selected_threshold": {
+    "threshold": 0.605,
+    "samples": 170,
+    "accuracy": 0.7352941176470589,
+    "balanced_accuracy": 0.6628787878787878,
+    "precision_distraction": 0.7142857142857143,
+    "recall_distraction": 0.4166666666666667,
+    "f1_distraction": 0.5263157894736842,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        100,
+        10
+      ],
+      [
+        35,
+        25
+      ]
+    ],
+    "roc_auc": 0.758030303030303
+  },
+  "validation_at_selected_threshold": {
+    "threshold": 0.605,
+    "samples": 93,
+    "accuracy": 0.7634408602150538,
+    "balanced_accuracy": 0.76875,
+    "precision_distraction": 0.90625,
+    "recall_distraction": 0.6041666666666666,
+    "f1_distraction": 0.725,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        42,
+        3
+      ],
+      [
+        19,
+        29
+      ]
+    ],
+    "roc_auc": 0.7939814814814814
+  },
+  "test_at_selected_threshold": {
+    "threshold": 0.605,
+    "samples": 333,
+    "accuracy": 0.5405405405405406,
+    "balanced_accuracy": 0.6164626424651751,
+    "precision_distraction": 0.8347826086956521,
+    "recall_distraction": 0.41739130434782606,
+    "f1_distraction": 0.5565217391304348,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        84,
+        19
+      ],
+      [
+        134,
+        96
+      ]
+    ],
+    "roc_auc": 0.5940481215702829
+  },
+  "test_at_fixed_0_5": {
+    "threshold": 0.5,
+    "samples": 333,
+    "accuracy": 0.5675675675675675,
+    "balanced_accuracy": 0.526129168425496,
+    "precision_distraction": 0.7087378640776699,
+    "recall_distraction": 0.6347826086956522,
+    "f1_distraction": 0.6697247706422018,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        43,
+        60
+      ],
+      [
+        84,
+        146
+      ]
+    ],
+    "roc_auc": 0.5940481215702829
+  },
+  "onnx_verification": {
+    "max_absolute_probability_error_vs_pytorch": 1.1920928955078125e-07,
+    "passed": true
+  }
+}

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FocusFlow 小显示端</title>
+<style>
+  :root{color-scheme:dark;--bg:#0d1117;--card:#161b22;--line:#30363d;--text:#f0f6fc;--muted:#8b949e;--blue:#58a6ff;--green:#3fb950;--yellow:#d29922;--red:#f85149}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Microsoft YaHei",sans-serif}
+  main{width:min(430px,100%);min-height:100vh;margin:auto;padding:18px;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}.head{display:flex;align-items:center;gap:10px}.dot{width:10px;height:10px;border-radius:50%;background:var(--yellow)}.dot.live{background:var(--green)}
+  h1{font-size:18px;margin:0}.grow{flex:1}.muted{color:var(--muted)}
+  .state{text-align:center;padding:26px 12px}.state strong{display:block;font-size:32px;margin-bottom:10px}.score{font-size:54px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--blue)}
+  .timer{text-align:center;font-size:64px;font-weight:800;font-variant-numeric:tabular-nums}.resting{border-color:var(--yellow);box-shadow:0 0 0 1px var(--yellow)}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions select{grid-column:1/-1}button,select{border:1px solid var(--line);background:#21262d;color:var(--text);padding:12px;border-radius:10px;font-size:15px}button{cursor:pointer}button.primary{background:#238636}button:disabled{opacity:.45;cursor:not-allowed}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px}.meta div{background:#0d1117;padding:10px;border-radius:8px}
+</style>
+</head>
+<body><main>
+  <div class="card head"><span class="dot" id="dot"></span><h1>FocusFlow Lite</h1><span class="grow"></span><span class="muted" id="connection">连接中</span></div>
+  <div class="card state" id="state-card"><strong id="state">等待数据</strong><span class="score" id="score">--</span><div class="muted" id="reason">正在连接实时服务</div></div>
+  <div class="card" id="timer-card"><div class="muted" id="timer-label">休息控制</div><div class="timer" id="timer">--:--</div></div>
+  <div class="card actions">
+    <select id="duration"><option value="60">休息 1 分钟（测试）</option><option value="300" selected>休息 5 分钟</option><option value="600">休息 10 分钟</option><option value="900">休息 15 分钟</option></select>
+    <button class="primary" id="start" onclick="rest('start')">☕ 开始休息</button><button id="stop" onclick="rest('stop')" disabled>结束休息</button>
+  </div>
+  <div class="card meta"><div>屏幕<br><b id="screen">等待</b></div><div>摄像头<br><b id="camera">等待</b></div><div>头环<br><b id="headband">等待</b></div><div>UNO Q<br><b id="uno">未连接</b></div><div>休息输出<br><b id="outputs">正常</b></div></div>
+</main><script>
+let ws, active=false;
+const $=id=>document.getElementById(id);
+function clock(s){s=Math.max(0,Number(s)||0);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`}
+function connect(){const p=new URLSearchParams(location.search),proto=location.protocol==='https:'?'wss:':'ws:',host=p.get('host')||location.hostname||'localhost',port=p.get('wsPort')||'8765';ws=new WebSocket(`${proto}//${host}:${port}`);ws.onopen=()=>{$('connection').textContent='已连接';$('dot').classList.add('live');ws.send(JSON.stringify({type:'rest_command',data:{action:'query'}}))};ws.onclose=()=>{$('connection').textContent='重连中';$('dot').classList.remove('live');setTimeout(connect,2000)};ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(_){}}}
+function handle(m){if(m.type==='focus_decision'&&!active){$('state').textContent=m.label||m.state;$('score').textContent=m.focus_percent==null?'--':`${Number(m.focus_percent).toFixed(0)}%`;$('reason').textContent=m.reason||''}else if(m.type==='rest_state'){active=m.active===true;$('timer-card').classList.toggle('resting',active);$('state-card').classList.toggle('resting',active);$('timer-label').textContent=active?(m.phase==='ending'?'休息即将结束':'休息中'):(m.event==='finished'?'休息结束，继续加油':'休息控制');$('timer').textContent=active?clock(m.remaining_seconds):'--:--';$('start').disabled=active;$('stop').disabled=!active;$('outputs').textContent=active?'已暂停':'正常';if(active){$('state').textContent='休息中';$('score').textContent='☕';$('reason').textContent='摄像头、屏幕分析和脑电业务输出已暂停'}}else if(m.type==='screen_state')$('screen').textContent=m.state||'未知';else if(m.type==='camera_state')$('camera').textContent=m.face_detected?(m.is_focused?'专注':'偏离'):'离开';else if(m.type==='status')$('headband').textContent=m.ble_connected?'已连接':'未连接';else if(m.type==='uno_q_status')$('uno').textContent=m.connected?'已连接':(m.state==='error'?'连接错误':(m.state||'连接中'))}
+function rest(action){if(!ws||ws.readyState!==1)return alert('实时服务尚未连接');ws.send(JSON.stringify({type:'rest_command',data:{action,duration_seconds:Number($('duration').value),reason:'manual'}}))}connect();
+</script></body></html>

@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "model_kind": "cloud_attention_teacher_ridge_logit",
+  "feature_order": [
+    "theta",
+    "alpha",
+    "beta",
+    "theta_beta",
+    "theta_alpha_beta"
+  ],
+  "label_mapping": {
+    "focus": 0,
+    "distraction": 1
+  },
+  "raw_clip_quantiles": [
+    0.01,
+    0.99
+  ],
+  "raw_clip_lower": [
+    0.07729908397913157,
+    0.10573991270665979,
+    0.2645911150092523,
+    0.152263468058236,
+    0.3902303467188531
+  ],
+  "raw_clip_upper": [
+    0.3522643828890336,
+    0.30599550785404744,
+    0.5756190111223115,
+    1.255739042334741,
+    2.0880889486014915
+  ],
+  "log1p_features": [],
+  "mean_after_clip_and_log": [
+    0.17217995410631162,
+    0.18394092530301934,
+    0.4323736646418006,
+    0.42314387405279535,
+    0.8679519791968837
+  ],
+  "std_after_clip_and_log": [
+    0.05493463189890705,
+    0.042393932228175155,
+    0.06327010043799323,
+    0.20598388399752915,
+    0.3203701903788351
+  ],
+  "distraction_probability_threshold": 0.4,
+  "focus_probability_definition": "calibrated estimate of AffectiveCloud attention / 100"
+}

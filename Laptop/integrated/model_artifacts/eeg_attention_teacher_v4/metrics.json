@@ -1,0 +1,192 @@
+{
+  "warning": "Personal calibration to AffectiveCloud attention. The cloud metric is a reference signal, not behavioral ground truth; screen and camera gates remain required.",
+  "split_policy": "leave-one-whole-session-out cross-validation",
+  "teacher_pairing": "nearest non-zero cloud attention within 2.5 seconds",
+  "ridge_alpha": 10.0,
+  "qualifying_sessions": [
+    {
+      "file": "session_20260721_021145.jsonl",
+      "pairs": 161,
+      "attention_mean": 72.34223602484471,
+      "attention_std": 11.176770162863903
+    },
+    {
+      "file": "session_20260721_023408.jsonl",
+      "pairs": 162,
+      "attention_mean": 60.254320987654324,
+      "attention_std": 15.1319612233467
+    },
+    {
+      "file": "session_20260721_113620.jsonl",
+      "pairs": 91,
+      "attention_mean": 65.3578021978022,
+      "attention_std": 16.529445308377188
+    },
+    {
+      "file": "session_20260721_120935.jsonl",
+      "pairs": 93,
+      "attention_mean": 73.80032258064516,
+      "attention_std": 9.480154081095838
+    },
+    {
+      "file": "session_20260721_121322.jsonl",
+      "pairs": 356,
+      "attention_mean": 59.29943820224719,
+      "attention_std": 22.411565789677827
+    },
+    {
+      "file": "session_20260721_153209.jsonl",
+      "pairs": 215,
+      "attention_mean": 73.50390697674419,
+      "attention_std": 12.912612568345104
+    },
+    {
+      "file": "session_20260721_154358.jsonl",
+      "pairs": 147,
+      "attention_mean": 76.7942857142857,
+      "attention_std": 7.902206270756175
+    }
+  ],
+  "excluded_short_or_flat_sessions": [
+    {
+      "file": "session_20260721_022416.jsonl",
+      "pairs": 7,
+      "attention_std": 0.0
+    },
+    {
+      "file": "session_20260721_114332.jsonl",
+      "pairs": 18,
+      "attention_std": 10.269295779286386
+    }
+  ],
+  "cross_validation_aggregate": {
+    "samples": 1225,
+    "mae_points": 10.58877493298589,
+    "rmse_points": 13.655419722381476,
+    "pearson": 0.645569461488396,
+    "spearman": 0.5924721315485656,
+    "target_mean": 67.28325714285714,
+    "target_std": 17.496056341743685,
+    "prediction_mean": 69.83170318603516,
+    "prediction_std": 10.095277786254883,
+    "prediction_min": 30.067371368408203,
+    "prediction_max": 88.77681732177734
+  },
+  "cross_validation_folds": [
+    {
+      "held_out_session": "session_20260721_021145.jsonl",
+      "samples": 161,
+      "mae_points": 8.725354445558157,
+      "rmse_points": 11.107107385651812,
+      "pearson": 0.41684291739189067,
+      "spearman": 0.4850564076475755,
+      "target_mean": 72.34223602484471,
+      "target_std": 11.176770162863903,
+      "prediction_mean": 70.78953552246094,
+      "prediction_std": 8.871160507202148,
+      "prediction_min": 47.24993133544922,
+      "prediction_max": 88.77681732177734
+    },
+    {
+      "held_out_session": "session_20260721_023408.jsonl",
+      "samples": 162,
+      "mae_points": 11.605727849889684,
+      "rmse_points": 15.125186106355553,
+      "pearson": 0.4551123561165999,
+      "spearman": 0.494822662961433,
+      "target_mean": 60.254320987654324,
+      "target_std": 15.1319612233467,
+      "prediction_mean": 64.97709655761719,
+      "prediction_std": 11.878503799438477,
+      "prediction_min": 30.067371368408203,
+      "prediction_max": 87.02784729003906
+    },
+    {
+      "held_out_session": "session_20260721_113620.jsonl",
+      "samples": 91,
+      "mae_points": 11.417685875525844,
+      "rmse_points": 15.004917084924934,
+      "pearson": 0.49765221139852106,
+      "spearman": 0.3491717314296511,
+      "target_mean": 65.3578021978022,
+      "target_std": 16.529445308377188,
+      "prediction_mean": 69.77051544189453,
+      "prediction_std": 7.8815131187438965,
+      "prediction_min": 48.29269790649414,
+      "prediction_max": 88.3534927368164
+    },
+    {
+      "held_out_session": "session_20260721_120935.jsonl",
+      "samples": 93,
+      "mae_points": 6.242027865173994,
+      "rmse_points": 8.04445573988443,
+      "pearson": 0.534125693923902,
+      "spearman": 0.4460130585106889,
+      "target_mean": 73.80032258064516,
+      "target_std": 9.480154081095838,
+      "prediction_mean": 73.33101654052734,
+      "prediction_std": 5.573185920715332,
+      "prediction_min": 57.614295959472656,
+      "prediction_max": 81.73551940917969
+    },
+    {
+      "held_out_session": "session_20260721_121322.jsonl",
+      "samples": 356,
+      "mae_points": 14.736322950727484,
+      "rmse_points": 17.546416830952225,
+      "pearson": 0.7175735652774888,
+      "spearman": 0.7056140785159626,
+      "target_mean": 59.29943820224719,
+      "target_std": 22.411565789677827,
+      "prediction_mean": 64.51973724365234,
+      "prediction_std": 10.001161575317383,
+      "prediction_min": 37.61863708496094,
+      "prediction_max": 85.83604431152344
+    },
+    {
+      "held_out_session": "session_20260721_153209.jsonl",
+      "samples": 215,
+      "mae_points": 8.179418596844343,
+      "rmse_points": 10.352218088847263,
+      "pearson": 0.6063878375384667,
+      "spearman": 0.5471492327351252,
+      "target_mean": 73.50390697674419,
+      "target_std": 12.912612568345104,
+      "prediction_mean": 74.60759735107422,
+      "prediction_std": 7.10588264465332,
+      "prediction_min": 55.1856689453125,
+      "prediction_max": 87.20184326171875
+    },
+    {
+      "held_out_session": "session_20260721_154358.jsonl",
+      "samples": 147,
+      "mae_points": 7.225274425688245,
+      "rmse_points": 9.16629891475744,
+      "pearson": 0.1370864850260407,
+      "spearman": 0.07886812582973574,
+      "target_mean": 76.7942857142857,
+      "target_std": 7.902206270756175,
+      "prediction_mean": 77.83583068847656,
+      "prediction_std": 5.737838268280029,
+      "prediction_min": 47.9140625,
+      "prediction_max": 88.643798828125
+    }
+  ],
+  "fit_all_sessions": {
+    "samples": 1225,
+    "mae_points": 9.75869662313656,
+    "rmse_points": 12.67978968516165,
+    "pearson": 0.693943283694131,
+    "spearman": 0.6086984364690953,
+    "target_mean": 67.28325714285714,
+    "target_std": 17.496056341743685,
+    "prediction_mean": 68.64191436767578,
+    "prediction_std": 12.620408058166504,
+    "prediction_min": 20.9193058013916,
+    "prediction_max": 88.77799987792969
+  },
+  "onnx_verification": {
+    "max_absolute_probability_error_vs_sklearn": 1.1920928955078125e-07,
+    "passed": true
+  }
+}

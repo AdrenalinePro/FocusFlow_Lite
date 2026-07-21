@@ -1,0 +1,197 @@
+{
+  "warning": "Preliminary one-person baseline. Overlapping windows are correlated, although entire sessions were kept separate.",
+  "split_policy": "Multiple whole sessions pooled for training; validation and test are separate whole sessions; no validation/test windows in training",
+  "dataset": {
+    "train_sessions": [
+      {
+        "file": "P01_R1_visual.jsonl",
+        "raw_feature_rows": 726,
+        "usable_rows": 474,
+        "focus_rows": 275,
+        "distraction_rows": 199,
+        "excluded_invalid": 0,
+        "excluded_unlabeled": 204,
+        "excluded_transition_guard": 48
+      },
+      {
+        "file": "P01_R2_audio_partial.jsonl",
+        "raw_feature_rows": 338,
+        "usable_rows": 170,
+        "focus_rows": 110,
+        "distraction_rows": 60,
+        "excluded_invalid": 88,
+        "excluded_unlabeled": 47,
+        "excluded_transition_guard": 33
+      },
+      {
+        "file": "session_20260721_021145.jsonl",
+        "raw_feature_rows": 205,
+        "usable_rows": 13,
+        "focus_rows": 2,
+        "distraction_rows": 11,
+        "excluded_invalid": 33,
+        "excluded_unlabeled": 152,
+        "excluded_transition_guard": 7
+      },
+      {
+        "file": "session_20260721_023408.jsonl",
+        "raw_feature_rows": 173,
+        "usable_rows": 116,
+        "focus_rows": 37,
+        "distraction_rows": 79,
+        "excluded_invalid": 0,
+        "excluded_unlabeled": 41,
+        "excluded_transition_guard": 16
+      }
+    ],
+    "train_combined": {
+      "file": "P01_R1_visual.jsonl + P01_R2_audio_partial.jsonl + session_20260721_021145.jsonl + session_20260721_023408.jsonl",
+      "raw_feature_rows": 1442,
+      "usable_rows": 773,
+      "focus_rows": 424,
+      "distraction_rows": 349,
+      "excluded_invalid": 121,
+      "excluded_unlabeled": 444,
+      "excluded_transition_guard": 104
+    },
+    "validation": {
+      "file": "local_session_20260720_200415.jsonl",
+      "raw_feature_rows": 181,
+      "usable_rows": 93,
+      "focus_rows": 45,
+      "distraction_rows": 48,
+      "excluded_invalid": 44,
+      "excluded_unlabeled": 20,
+      "excluded_transition_guard": 24
+    },
+    "test": {
+      "file": "local_session_20260720_214422.jsonl",
+      "raw_feature_rows": 769,
+      "usable_rows": 333,
+      "focus_rows": 103,
+      "distraction_rows": 230,
+      "excluded_invalid": 344,
+      "excluded_unlabeled": 37,
+      "excluded_transition_guard": 55
+    }
+  },
+  "training": {
+    "seed": 42,
+    "best_epoch": 4,
+    "best_validation_loss": 0.7005861401557922,
+    "epochs_completed": 84,
+    "pos_weight": 1.2148997134670487,
+    "history": [
+      {
+        "epoch": 1,
+        "train_loss": 0.7594740482477041,
+        "validation_loss": 0.7358224391937256
+      },
+      {
+        "epoch": 20,
+        "train_loss": 0.6635884780150193,
+        "validation_loss": 0.8340550661087036
+      },
+      {
+        "epoch": 40,
+        "train_loss": 0.6600916706598722,
+        "validation_loss": 0.8835564851760864
+      },
+      {
+        "epoch": 60,
+        "train_loss": 0.6802072800122775,
+        "validation_loss": 0.8950396180152893
+      },
+      {
+        "epoch": 80,
+        "train_loss": 0.6436633009176987,
+        "validation_loss": 0.9038781523704529
+      }
+    ]
+  },
+  "selected_threshold_from_validation_only": 0.55,
+  "train_at_selected_threshold": {
+    "threshold": 0.55,
+    "samples": 773,
+    "accuracy": 0.6119016817593791,
+    "balanced_accuracy": 0.5826181272638806,
+    "precision_distraction": 0.6666666666666666,
+    "recall_distraction": 0.2808022922636103,
+    "f1_distraction": 0.3951612903225806,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        375,
+        49
+      ],
+      [
+        251,
+        98
+      ]
+    ],
+    "roc_auc": 0.654079039844299
+  },
+  "validation_at_selected_threshold": {
+    "threshold": 0.55,
+    "samples": 93,
+    "accuracy": 0.8387096774193549,
+    "balanced_accuracy": 0.8416666666666667,
+    "precision_distraction": 0.9230769230769231,
+    "recall_distraction": 0.75,
+    "f1_distraction": 0.8275862068965517,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        42,
+        3
+      ],
+      [
+        12,
+        36
+      ]
+    ],
+    "roc_auc": 0.8611111111111112
+  },
+  "test_at_selected_threshold": {
+    "threshold": 0.55,
+    "samples": 333,
+    "accuracy": 0.5075075075075075,
+    "balanced_accuracy": 0.6086323343182778,
+    "precision_distraction": 0.8586956521739131,
+    "recall_distraction": 0.34347826086956523,
+    "f1_distraction": 0.4906832298136646,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        90,
+        13
+      ],
+      [
+        151,
+        79
+      ]
+    ],
+    "roc_auc": 0.6262980160405234
+  },
+  "test_at_fixed_0_5": {
+    "threshold": 0.5,
+    "samples": 333,
+    "accuracy": 0.6816816816816816,
+    "balanced_accuracy": 0.5551287463064585,
+    "precision_distraction": 0.7183098591549296,
+    "recall_distraction": 0.8869565217391304,
+    "f1_distraction": 0.7937743190661478,
+    "confusion_matrix_rows_actual_focus_distraction": [
+      [
+        23,
+        80
+      ],
+      [
+        26,
+        204
+      ]
+    ],
+    "roc_auc": 0.6262980160405234
+  },
+  "onnx_verification": {
+    "max_absolute_probability_error_vs_pytorch": 5.960464477539063e-08,
+    "passed": true
+  }
+}

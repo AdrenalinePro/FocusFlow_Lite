@@ -1,0 +1,8 @@
+-r requirements_local.txt
+
+# Personalized five-feature model inference on Windows.
+onnxruntime>=1.17,<2
+
+# Bleak 0.19 uses this legacy Windows projection. Python 3.12 uses modern
+# Bleak's prebuilt WinRT projection instead; bleak-winrt 1.2 has no cp312 wheel.
+bleak-winrt==1.2.0; sys_platform == "win32" and python_version < "3.12"

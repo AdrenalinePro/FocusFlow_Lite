@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+session_*.json
+session_*.jsonl
+.env
+.env.ps1
+*.save
+.venv-train/

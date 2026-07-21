@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧠 Flowtime EEG Dashboard</title>
+<script src="chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --yellow: #d2991d; --red: #f85149;
+    --purple: #a371f7; --orange: #d1864b; --pink: #e05d8f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 16px;
+  }
+  .status-bar {
+    display: flex; align-items: center; gap: 24px;
+    padding: 12px 20px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .status-bar .logo { font-size: 1.3em; }
+  .status-bar .stat { font-size: 0.95em; color: var(--muted); }
+  .status-bar .stat b { color: var(--text); }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  }
+  .status-dot.live { background: var(--green); animation: pulse 1.5s infinite; }
+  .status-dot.reconnect { background: var(--yellow); animation: pulse 0.5s infinite; }
+  .status-dot.disconnected { background: var(--red); }
+  .status-dot.playback { background: var(--purple); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .main-grid {
+    display: grid; grid-template-columns: 3fr 2fr; gap: 16px;
+  }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .panel h3 { font-size: 0.9em; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  canvas { width: 100% !important; }
+  .gauges { display: flex; flex-direction: column; gap: 10px; }
+  .gauge-row { display: flex; align-items: center; gap: 10px; }
+  .gauge-label { width: 90px; font-size: 0.85em; color: var(--muted); text-align: right; flex-shrink: 0; }
+  .gauge-track { flex: 1; height: 18px; background: #21262d; border-radius: 9px; overflow: hidden; position: relative; }
+  .gauge-fill {
+    height: 100%; border-radius: 9px; transition: width 0.5s ease;
+    position: relative;
+  }
+  .gauge-fill.attention { background: linear-gradient(90deg, #1f6feb, var(--accent)); }
+  .gauge-value { width: 45px; font-size: 0.85em; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .controls {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px;
+    margin-top: 16px; flex-wrap: wrap;
+  }
+  .controls button {
+    padding: 8px 16px; border: 1px solid var(--border);
+    border-radius: 6px; background: #21262d; color: var(--text);
+    cursor: pointer; font-size: 0.9em;
+  }
+  .controls button:hover { background: #30363d; }
+  .controls button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .controls select, .controls input[type=range] {
+    background: #21262d; color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px;
+  }
+  .controls input[type=range] { width: 120px; }
+  .overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); display: flex;
+    align-items: center; justify-content: center;
+    z-index: 100; font-size: 1.2em; color: var(--yellow);
+  }
+  .overlay.hidden { display: none; }
+  #file-info { font-size: 0.8em; color: var(--muted); }
+  .signal-good { color: var(--green) !important; }
+  .signal-warn { color: var(--yellow) !important; }
+  .signal-bad { color: var(--red) !important; }
+  .personal-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(110px, 1fr)) minmax(180px, 1.4fr);
+    gap: 12px;
+  }
+  @media (max-width: 1000px) {
+    .personal-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+  }
+  .personal-card {
+    background: #0d1117; border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+  }
+  .personal-card small { display:block; color:var(--muted); margin-bottom:6px; }
+  .personal-card strong { font-size:1.35em; font-variant-numeric:tabular-nums; }
+  .model-note { color:var(--muted); font-size:0.8em; margin-top:10px; }
+  .rest-panel { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .rest-clock { font-size:2rem; font-variant-numeric:tabular-nums; min-width:110px; }
+  .rest-active { border-color:var(--yellow) !important; box-shadow:0 0 0 1px var(--yellow); }
+  .rest-panel select { background:#21262d; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; }
+</style>
+</head>
+<body>
+
+<div id="reconnect-overlay" class="overlay hidden">
+  ⚠️ 连接中断，正在重连...
+</div>
+
+<div class="panel" id="rest-panel" style="margin-top:16px;">
+  <div class="rest-panel">
+    <div>
+      <small style="color:var(--muted)">学习/休息控制</small>
+      <div id="rest-title" style="font-size:1.2rem;font-weight:700">正在监测</div>
+    </div>
+    <div class="rest-clock" id="rest-clock">--:--</div>
+    <span id="rest-note" style="color:var(--muted)">休息时暂停摄像头、屏幕分析和脑电业务输出</span>
+    <span style="flex:1"></span>
+    <select id="rest-duration" aria-label="休息时长">
+      <option value="60">1 分钟（测试）</option>
+      <option value="300" selected>5 分钟</option>
+      <option value="600">10 分钟</option>
+      <option value="900">15 分钟</option>
+    </select>
+    <button id="btn-rest-start" onclick="sendRestCommand('start')">☕ 开始休息</button>
+    <button id="btn-rest-stop" onclick="sendRestCommand('stop')" disabled>结束休息</button>
+    <a href="focusflow_mini.html" target="_blank" style="color:var(--accent)">打开小显示端</a>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span class="logo">🧠 Flowtime Dashboard</span>
+  <span class="stat">⏱ <b id="elapsed">00:00</b></span>
+  <span class="stat">❤ <b id="hr-val">--</b> BPM</span>
+  <span class="stat">🔋 <b id="battery-val">--</b></span>
+  <span class="stat">👤 <b id="wear-val">未知</b></span>
+  <span class="stat" id="quality-stat">📶 <b id="quality-val">未知</b></span>
+  <span class="stat">🖥 <b id="screen-val">等待屏幕</b></span>
+  <span class="stat">📷 <b id="camera-val">等待摄像头</b></span>
+  <span class="stat">📡 UNO Q <b id="uno-q-val">未连接</b></span>
+  <span class="stat"><span class="status-dot live" id="conn-dot"></span> <b id="conn-text">等待连接</b></span>
+  <span class="stat" id="data-timeout" style="display:none;color:var(--yellow)">⚠ 数据超时</span>
+</div>
+
+<div class="main-grid">
+  <div class="panel">
+    <h3>📈 EEG 波形 (最近 5 秒)</h3>
+    <canvas id="eeg-chart"></canvas>
+  </div>
+  <div class="panel">
+    <h3>☁️ 官方专注度参考（不作为本项目最终判断）</h3>
+    <div class="gauges" id="gauges">
+      <div class="gauge-row">
+        <span class="gauge-label">专注度</span>
+        <div class="gauge-track"><div class="gauge-fill attention" id="g-attention" style="width:0%"></div></div>
+        <span class="gauge-value" id="v-attention">--</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:16px;">
+  <h3>🧠 分层学习状态与脑电专注度</h3>
+  <div class="personal-grid">
+    <div class="personal-card"><small>Theta θ</small><strong id="p-theta">--</strong></div>
+    <div class="personal-card"><small>Alpha α</small><strong id="p-alpha">--</strong></div>
+    <div class="personal-card"><small>Beta β</small><strong id="p-beta">--</strong></div>
+    <div class="personal-card"><small>θ / β</small><strong id="p-theta-beta">--</strong></div>
+    <div class="personal-card"><small>(θ + α) / β</small><strong id="p-theta-alpha-beta">--</strong></div>
+    <div class="personal-card">
+      <small>最终判断</small>
+      <strong id="p-state">等待屏幕判断</strong>
+      <div class="model-note" id="p-probability">脑电候选专注度：--</div>
+    </div>
+  </div>
+  <div class="model-note">
+    判定顺序：屏幕非学习→摸鱼；屏幕学习但人离开/持续偏头→走神；两项通过后才显示脑电专注百分比。脑电本身不再判断任务是否与学习相关。
+  </div>
+</div>
+
+<div class="panel" style="margin-top:16px;">
+  <h3>📊 官方返回频段功率（仅作算法对照）</h3>
+  <canvas id="power-chart" style="max-height:200px;"></canvas>
+</div>
+
+<div class="controls">
+  <button id="btn-live" class="active" onclick="switchMode('live')">📡 实时</button>
+  <button id="btn-playback" onclick="switchMode('playback')">📂 回放</button>
+  <span style="color:var(--muted);font-size:0.85em">实验标记</span>
+  <button onclick="sendMarker('rest')">静息</button>
+  <button onclick="sendMarker('focus')">专注</button>
+  <button onclick="sendMarker('distraction')">干扰</button>
+  <button onclick="sendMarker('end')">结束</button>
+  <span id="marker-info" style="font-size:0.8em;color:var(--muted)">未标记</span>
+  <span style="flex:1"></span>
+  <span id="playback-controls" style="display:none;align-items:center;gap:12px;">
+    <button id="btn-play" onclick="togglePlay()">▶</button>
+    <input type="range" id="playback-slider" min="0" max="100" value="0" oninput="seekPlayback(this.value)">
+    <span style="font-size:0.8em;color:var(--muted)">速度</span>
+    <select id="speed-select" onchange="setSpeed(this.value)">
+      <option value="0.25">0.25x</option>
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+      <option value="4">4x</option>
+    </select>
+    <span id="file-info"></span>
+  </span>
+</div>
+
+<script>
+// ============================================================================
+// Chart.js 初始化
+// ============================================================================
+const WINDOW_SECS = 5;  // EEG waveform window
+const EEG_SAMPLE_RATE = 250;  // Flowtime: 250 Hz per channel
+const DATA_TIMEOUT_MS = 8000;  // Cloud results arrive in batches, not per sample
+
+// EEG waveform chart
+const eegCtx = document.getElementById('eeg-chart').getContext('2d');
+const eegChart = new Chart(eegCtx, {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'L', borderColor: '#58a6ff', borderWidth: 1.2, pointRadius: 0, data: [], tension: 0, spanGaps: false },
+      { label: 'R', borderColor: '#d1864b', borderWidth: 1.2, pointRadius: 0, data: [], tension: 0, spanGaps: false },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    animation: false,
+    scales: {
+      x: { type: 'linear', min: 0, max: WINDOW_SECS, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+      y: { min: -150, max: 150, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+    },
+    plugins: { legend: { labels: { color: '#8b949e', usePointStyle: true, pointStyleWidth: 8 } } },
+  },
+});
+
+// Power bands bar chart
+const powerCtx = document.getElementById('power-chart').getContext('2d');
+const powerChart = new Chart(powerCtx, {
+  type: 'bar',
+  data: {
+    labels: ['Alpha α', 'Beta β', 'Theta θ', 'Delta δ', 'Gamma γ'],
+    datasets: [{
+      data: [0, 0, 0, 0, 0],
+      backgroundColor: ['#58a6ff', '#3fb950', '#a371f7', '#e05d8f', '#d2991d'],
+      borderRadius: 4,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    animation: { duration: 300 },
+    scales: {
+      y: { beginAtZero: true, max: 1, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+      x: { ticks: { color: '#8b949e' }, grid: { display: false } },
+    },
+    plugins: { legend: { display: false } },
+  },
+});
+
+// ============================================================================
+// 状态
+// ============================================================================
+let mode = 'live';  // 'live' | 'playback'
+let ws = null;
+let reconnectTimer = null;
+let lastDataTime = 0;
+let dataTimeoutTimer = null;
+let elapsedTimer = null;
+let startTime = 0;
+let deviceWorn = null;
+let eegQuality = null;
+let restActive = false;
+
+// Playback state
+let playbackData = [];
+let playbackIndex = 0;
+let isPlaying = false;
+let playbackSpeed = 1;
+let playbackTimer = null;
+let playbackStartTime = 0;
+
+// ============================================================================
+// 实时模式 — WebSocket
+// ============================================================================
+function connectWS() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const params = new URLSearchParams(location.search);
+  const host = params.get('host') || location.hostname || 'localhost';
+  const port = params.get('wsPort') || '8765';
+  ws = new WebSocket(`${protocol}//${host}:${port}`);
+
+  ws.onopen = () => {
+    setConnection('live');
+    document.getElementById('reconnect-overlay').classList.add('hidden');
+    if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+    lastDataTime = Date.now();
+    startDataTimeout();
+    if (!startTime) startTime = Date.now();
+    if (!elapsedTimer) startElapsedTimer();
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      handleMessage(msg);
+      // Battery/wear status packets do not prove that cloud EEG results are
+      // still flowing. Only physiological data refreshes this watchdog.
+      if (['eeg', 'eeg_features', 'eeg_prediction', 'affective', 'hr'].includes(msg.type)) {
+        lastDataTime = Date.now();
+        document.getElementById('data-timeout').style.display = 'none';
+        startDataTimeout();
+      }
+    } catch (e) { /* skip */ }
+  };
+
+  ws.onclose = () => {
+    if (mode === 'live') {
+      setConnection('disconnected');
+      scheduleReconnect();
+    } else {
+      setConnection('playback');
+      document.getElementById('reconnect-overlay').classList.add('hidden');
+    }
+  };
+
+  ws.onerror = () => { ws.close(); };
+}
+
+function scheduleReconnect() {
+  if (mode !== 'live') {
+    document.getElementById('reconnect-overlay').classList.add('hidden');
+    return;
+  }
+  setConnection('reconnect');
+  document.getElementById('reconnect-overlay').classList.remove('hidden');
+  if (!reconnectTimer) {
+    reconnectTimer = setInterval(() => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) connectWS();
+    }, 2000);
+  }
+}
+
+function setConnection(state) {
+  const dot = document.getElementById('conn-dot');
+  const text = document.getElementById('conn-text');
+  dot.className = 'status-dot ' + state;
+  text.textContent = {
+    live: '已连接',
+    reconnect: '重连中...',
+    disconnected: '已断开',
+    playback: '离线回放',
+  }[state] || state;
+}
+
+function startDataTimeout() {
+  if (dataTimeoutTimer) clearTimeout(dataTimeoutTimer);
+  dataTimeoutTimer = setTimeout(() => {
+    document.getElementById('data-timeout').style.display = 'inline';
+  }, DATA_TIMEOUT_MS);
+}
+
+function startElapsedTimer() {
+  elapsedTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - startTime) / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    document.getElementById('elapsed').textContent = mm + ':' + ss;
+  }, 1000);
+}
+
+// ============================================================================
+// 数据处理 (共用)
+// ============================================================================
+function handleMessage(msg) {
+  if (msg.type === 'eeg') {
+    appendEEG(msg.ts, msg.eegl || [], msg.eegr || [], msg.sample_rate || EEG_SAMPLE_RATE);
+    if (msg.eeg_quality !== undefined) updateQuality(msg.eeg_quality);
+    if (msg.eeg_alpha_power !== undefined) {
+      powerChart.data.datasets[0].data = [
+        msg.eeg_alpha_power, msg.eeg_beta_power, msg.eeg_theta_power,
+        msg.eeg_delta_power, msg.eeg_gamma_power,
+      ];
+      powerChart.update('none');
+    }
+  } else if (msg.type === 'affective') {
+    if (signalIsUsable()) {
+      updateGauge('attention', msg.attention);
+    }
+  } else if (msg.type === 'eeg_features') {
+    updatePersonalFeatures(msg);
+  } else if (msg.type === 'eeg_prediction') {
+    updatePersonalPrediction(msg);
+  } else if (msg.type === 'focus_decision') {
+    updateFocusDecision(msg);
+  } else if (msg.type === 'screen_state') {
+    document.getElementById('screen-val').textContent =
+      `${msg.state || '未知'}${msg.app ? ` · ${msg.app}` : ''}`;
+  } else if (msg.type === 'camera_state') {
+    document.getElementById('camera-val').textContent = msg.face_detected
+      ? (msg.is_focused ? '在场 · 看向电脑' : '在场 · 视线偏离')
+      : '未检测到人脸';
+  } else if (msg.type === 'hr') {
+    document.getElementById('hr-val').textContent = msg.hr;
+  } else if (msg.type === 'status') {
+    updateDeviceStatus(msg);
+  } else if (msg.type === 'uno_q_status') {
+    const label = msg.connected ? '已连接' :
+      (msg.state === 'error' ? `错误：${msg.error || '未知'}` : (msg.state || '连接中'));
+    document.getElementById('uno-q-val').textContent = label;
+  } else if (msg.type === 'marker') {
+    document.getElementById('marker-info').textContent = `当前：${msg.label} @ ${Number(msg.ts).toFixed(1)}s`;
+  } else if (msg.type === 'rest_state') {
+    updateRestState(msg);
+  }
+}
+
+function formatCountdown(seconds) {
+  const value = Math.max(0, Number(seconds) || 0);
+  const mm = String(Math.floor(value / 60)).padStart(2, '0');
+  const ss = String(Math.floor(value % 60)).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+function updateRestState(msg) {
+  restActive = msg.active === true;
+  const panel = document.getElementById('rest-panel');
+  panel.classList.toggle('rest-active', restActive);
+  document.getElementById('rest-title').textContent = restActive
+    ? (msg.phase === 'ending' ? '休息即将结束' : '休息中')
+    : (msg.event === 'finished' ? '休息结束，继续加油' : '正在监测');
+  document.getElementById('rest-clock').textContent = restActive
+    ? formatCountdown(msg.remaining_seconds) : '--:--';
+  document.getElementById('rest-note').textContent = restActive
+    ? '摄像头、屏幕分析和脑电业务输出已暂停'
+    : '休息时暂停摄像头、屏幕分析和脑电业务输出';
+  document.getElementById('btn-rest-start').disabled = restActive;
+  document.getElementById('btn-rest-stop').disabled = !restActive;
+  document.getElementById('data-timeout').style.display = 'none';
+  if (restActive && dataTimeoutTimer) clearTimeout(dataTimeoutTimer);
+  if (!restActive && mode === 'live') startDataTimeout();
+}
+
+function sendRestCommand(action) {
+  if (mode !== 'live') return alert('请先切回实时模式');
+  if (!ws || ws.readyState !== WebSocket.OPEN) return alert('实时服务尚未连接');
+  const duration = Number(document.getElementById('rest-duration').value || 300);
+  ws.send(JSON.stringify({
+    type: 'rest_command',
+    data: { action, duration_seconds: duration, reason: 'manual' },
+  }));
+}
+
+function setPersonalValue(id, value) {
+  const numeric = Number(value);
+  document.getElementById(id).textContent = Number.isFinite(numeric)
+    ? numeric.toFixed(3)
+    : '--';
+}
+
+function updatePersonalFeatures(msg) {
+  setPersonalValue('p-theta', msg.theta);
+  setPersonalValue('p-alpha', msg.alpha);
+  setPersonalValue('p-beta', msg.beta);
+  setPersonalValue('p-theta-beta', msg.theta_beta);
+  setPersonalValue('p-theta-alpha-beta', msg.theta_alpha_beta);
+  if (msg.valid === false) {
+    document.getElementById('p-probability').textContent =
+      `脑电窗口无效：${msg.invalid_reason || '未知'}`;
+  }
+}
+
+function updatePersonalPrediction(msg) {
+  const probability = Number(
+    msg.smoothed_focus_probability ?? msg.focus_probability
+  );
+  document.getElementById('p-probability').textContent =
+    Number.isFinite(probability)
+      ? `脑电候选专注度：${(probability * 100).toFixed(1)}% · ${msg.model || '个人模型'}`
+      : '脑电候选专注度：--';
+}
+
+function updateFocusDecision(msg) {
+  const state = document.getElementById('p-state');
+  state.textContent = msg.label || '等待数据';
+  state.className = {
+    focused: 'signal-good',
+    slacking: 'signal-bad',
+    distracted: 'signal-warn',
+    eeg_invalid: 'signal-bad',
+    checking_camera: 'signal-warn',
+  }[msg.state] || '';
+
+  const hasPercent = msg.focus_percent !== null && msg.focus_percent !== undefined;
+  const percent = Number(msg.focus_percent);
+  const source = msg.eeg_source ? ` · ${msg.eeg_source}` : '';
+  document.getElementById('p-probability').textContent =
+    hasPercent && Number.isFinite(percent)
+      ? `脑电专注度：${percent.toFixed(1)}%${source}`
+      : `原因：${msg.reason || '等待上游状态'}`;
+}
+
+function appendEEG(ts, eegl, eegr, sampleRate) {
+  // Convert samples to {x, y} points
+  if (!eegl.length || !eegr.length) return;
+  const dt = 1 / sampleRate;
+  const startT = ts - (eegl.length - 1) * dt;
+
+  // Cloud EEG arrives as blocks. Insert a null point when two blocks have a
+  // real time gap so Chart.js does not draw a fake diagonal EEG signal.
+  const previous = eegChart.data.datasets[0].data.at(-1);
+  if (previous && startT - previous.x > dt * 3) {
+    const gapX = Math.max(previous.x + dt, startT - dt);
+    eegChart.data.datasets[0].data.push({ x: gapX, y: null });
+    eegChart.data.datasets[1].data.push({ x: gapX, y: null });
+  }
+
+  for (let i = 0; i < eegl.length; i++) {
+    const t = startT + i * dt;
+    eegChart.data.datasets[0].data.push({ x: t, y: eegl[i] });
+    eegChart.data.datasets[1].data.push({ x: t, y: eegr[i] });
+  }
+
+  // Prune old data beyond window
+  const cutoff = ts - WINDOW_SECS;
+  for (const ds of eegChart.data.datasets) {
+    while (ds.data.length > 0 && ds.data[0].x < cutoff) ds.data.shift();
+  }
+
+  eegChart.options.scales.x.max = ts;
+  eegChart.options.scales.x.min = ts - WINDOW_SECS;
+  eegChart.update('none');
+}
+
+function updateDeviceStatus(msg) {
+  if (msg.battery !== undefined && msg.battery !== null) {
+    document.getElementById('battery-val').textContent = Number(msg.battery).toFixed(0) + '%';
+  }
+  if (msg.is_worn !== undefined && msg.is_worn !== null) {
+    deviceWorn = Boolean(msg.is_worn);
+    const wear = document.getElementById('wear-val');
+    wear.textContent = deviceWorn ? '已佩戴' : '未佩戴';
+    wear.className = deviceWorn ? 'signal-good' : 'signal-bad';
+    if (!deviceWorn) clearAffectiveGauges();
+  }
+  if (msg.eeg_quality !== undefined) updateQuality(msg.eeg_quality);
+  if (msg.data_stale === true) {
+    document.getElementById('data-timeout').style.display = 'inline';
+  }
+  if (mode === 'live') {
+    if (msg.reconnecting) setConnection('reconnect');
+    else if (msg.ble_connected === false) setConnection('disconnected');
+    else if (msg.ble_connected === true) setConnection('live');
+  }
+}
+
+function updateQuality(value) {
+  const el = document.getElementById('quality-val');
+  const stat = document.getElementById('quality-stat');
+  const numeric = Number(value);
+  eegQuality = Number.isFinite(numeric) ? numeric : null;
+  const labels = ['无信号', '较差', '一般', '良好', '优秀'];
+  const valid = Number.isFinite(numeric);
+  el.textContent = valid && Number.isInteger(numeric) && numeric >= 0 && numeric < labels.length
+    ? `${labels[numeric]} (${numeric})`
+    : String(value);
+  stat.classList.remove('signal-good', 'signal-warn', 'signal-bad');
+  stat.classList.add(!valid || numeric < 2 ? 'signal-bad' : numeric === 2 ? 'signal-warn' : 'signal-good');
+  if (!signalIsUsable()) clearAffectiveGauges();
+}
+
+function signalIsUsable() {
+  return deviceWorn !== false && (eegQuality === null || eegQuality >= 2);
+}
+
+function clearAffectiveGauges() {
+  ['attention'].forEach(n => {
+    document.getElementById('g-'+n).style.width = '0%';
+    document.getElementById('v-'+n).textContent = '--';
+  });
+}
+
+function sendMarker(label) {
+  if (mode !== 'live') {
+    alert('请先切换到实时模式');
+    return;
+  }
+  sendMarkerWhenReady(label, 0);
+}
+
+function sendMarkerWhenReady(label, attempt) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'marker', label }));
+    document.getElementById('marker-info').textContent = `已发送：${label}`;
+    return;
+  }
+  if (attempt === 0) {
+    document.getElementById('marker-info').textContent = '正在重连后发送标记...';
+    connectWS();
+  }
+  if (attempt >= 10) {
+    document.getElementById('marker-info').textContent = '标记发送失败：实时连接未恢复';
+    alert('无法连接 UNO Q 实时数据服务，请检查顶部连接状态和脑电程序终端');
+    return;
+  }
+  setTimeout(() => sendMarkerWhenReady(label, attempt + 1), 500);
+}
+
+function updateGauge(name, value) {
+  if (value === undefined || value === null) return;
+  value = Number(value);
+  if (!Number.isFinite(value)) return;
+  const fill = document.getElementById('g-' + name);
+  const val = document.getElementById('v-' + name);
+  if (fill) fill.style.width = Math.min(100, Math.max(0, value)) + '%';
+  if (val) val.textContent = value.toFixed(1);
+}
+
+// ============================================================================
+// 模式切换
+// ============================================================================
+function switchMode(newMode) {
+  mode = newMode;
+  document.getElementById('btn-live').classList.toggle('active', newMode === 'live');
+  document.getElementById('btn-playback').classList.toggle('active', newMode === 'playback');
+  document.getElementById('playback-controls').style.display = newMode === 'playback' ? 'flex' : 'none';
+
+  if (newMode === 'live') {
+    stopPlayback();
+    document.getElementById('reconnect-overlay').classList.add('hidden');
+    if (!ws || ws.readyState !== WebSocket.OPEN) connectWS();
+    if (!elapsedTimer) startElapsedTimer();
+  } else {
+    if (ws) {
+      const liveSocket = ws;
+      ws = null;
+      liveSocket.close();
+    }
+    if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+    if (dataTimeoutTimer) { clearTimeout(dataTimeoutTimer); dataTimeoutTimer = null; }
+    setConnection('playback');
+    document.getElementById('reconnect-overlay').classList.add('hidden');
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+    document.getElementById('data-timeout').style.display = 'none';
+    startPlaybackPrompt();
+  }
+}
+
+// ============================================================================
+// 回放模式
+// ============================================================================
+function startPlaybackPrompt() {
+  // Create hidden file input
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,.jsonl,application/json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('file-info').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result.trim();
+        try {
+          playbackData = JSON.parse(text);
+        } catch (_) {
+          const lines = text.split(/\r?\n/).filter(Boolean);
+          playbackData = lines.map((line, index) => {
+            try { return JSON.parse(line); }
+            catch (err) {
+              // A sudden power loss can leave only the final JSONL line partial.
+              if (index === lines.length - 1) return null;
+              throw new Error(`第 ${index + 1} 行不是有效 JSON`);
+            }
+          }).filter(Boolean);
+        }
+        if (!Array.isArray(playbackData) || playbackData.length === 0) {
+          throw new Error('记录中没有可回放的数据');
+        }
+        const timed = playbackData.filter(item => Number.isFinite(Number(item.ts)));
+        const duration = timed.length
+          ? Math.max(...timed.map(item => Number(item.ts)))
+          : 0;
+        document.getElementById('file-info').textContent =
+          `${file.name} · ${playbackData.length}条 · ${duration.toFixed(1)}秒`;
+        playbackIndex = 0;
+        document.getElementById('playback-slider').max = playbackData.length - 1;
+        document.getElementById('playback-slider').value = 0;
+        resetCharts();
+        startPlayback();
+      } catch (err) {
+        alert('文件加载失败: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function resetCharts() {
+  eegChart.data.datasets[0].data = [];
+  eegChart.data.datasets[1].data = [];
+  eegChart.options.scales.x.min = 0;
+  eegChart.options.scales.x.max = WINDOW_SECS;
+  eegChart.update('none');
+  powerChart.data.datasets[0].data = [0, 0, 0, 0, 0];
+  powerChart.update('none');
+  clearAffectiveGauges();
+  document.getElementById('hr-val').textContent = '--';
+  document.getElementById('battery-val').textContent = '--';
+  document.getElementById('wear-val').textContent = '未知';
+  document.getElementById('quality-val').textContent = '未知';
+  document.getElementById('screen-val').textContent = '等待屏幕';
+  document.getElementById('camera-val').textContent = '等待摄像头';
+  document.getElementById('marker-info').textContent = '未标记';
+  document.getElementById('p-state').textContent = '等待屏幕判断';
+  document.getElementById('p-state').className = '';
+  document.getElementById('p-probability').textContent = '脑电候选专注度：--';
+  deviceWorn = null;
+  eegQuality = null;
+  document.getElementById('elapsed').textContent = '00:00';
+  startTime = 0;
+}
+
+function startPlayback() {
+  if (!playbackData.length) {
+    startPlaybackPrompt();
+    return;
+  }
+  if (playbackIndex >= playbackData.length) {
+    playbackIndex = 0;
+    resetCharts();
+  }
+  isPlaying = true;
+  document.getElementById('btn-play').textContent = '⏸';
+  playbackStartTime = Date.now();
+  playbackTick();
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  document.getElementById('btn-play').textContent = '▶';
+  if (playbackTimer) { clearTimeout(playbackTimer); playbackTimer = null; }
+}
+
+function togglePlay() {
+  if (isPlaying) stopPlayback();
+  else startPlayback();
+}
+
+function playbackTick() {
+  if (!isPlaying || playbackIndex >= playbackData.length) {
+    stopPlayback();
+    return;
+  }
+
+  const msg = playbackData[playbackIndex];
+  handleMessage(msg);
+  if (Number.isFinite(Number(msg.ts))) {
+    const secs = Math.max(0, Math.floor(Number(msg.ts)));
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    document.getElementById('elapsed').textContent = `${mm}:${ss}`;
+  }
+  playbackIndex++;
+
+  document.getElementById('playback-slider').value = playbackIndex;
+
+  // Calculate delay before next tick
+  const next = playbackData[playbackIndex];
+  if (next && msg.ts !== undefined && next.ts !== undefined) {
+    const dt = (next.ts - msg.ts) / playbackSpeed;
+    // Skip very long recording gaps so playback never appears frozen.
+    playbackTimer = setTimeout(playbackTick, Math.min(2000, Math.max(10, dt * 1000)));
+  } else if (playbackIndex < playbackData.length) {
+    playbackTimer = setTimeout(playbackTick, 20 / playbackSpeed);
+  } else {
+    stopPlayback();
+  }
+}
+
+function seekPlayback(pos) {
+  const idx = parseInt(pos);
+  playbackIndex = idx;
+  resetCharts();
+  // Fast-forward through data up to this point to restore state
+  for (let i = 0; i < idx && i < playbackData.length; i++) {
+    handleMessage(playbackData[i]);
+  }
+}
+
+function setSpeed(s) {
+  playbackSpeed = parseFloat(s);
+  if (isPlaying) {
+    if (playbackTimer) clearTimeout(playbackTimer);
+    playbackTick();
+  }
+}
+
+// ============================================================================
+// 启动
+// ============================================================================
+connectWS();
+</script>
+</body>
+</html>
