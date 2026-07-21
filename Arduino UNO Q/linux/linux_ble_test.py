@@ -22,10 +22,14 @@ The three prefixes are::
 
 Typical usage::
 
-    # 1. Make sure the UNO Q is powered and BlueZ is up
+    # 1. Verify BlueZ is reachable (no GATT registration required)
     python3 -m linux.linux_ble_test --scan-only
 
-    # 2. Run the server, default device name UNO-Q-FF01, 30 second window
+    # 2. Start the server.  LinuxBLEServer automatically powers the
+    #    adapter, sets Discoverable/Pairable, registers the GATT
+    #    application, and pushes an LEAdvertisement carrying
+    #    LocalName=UNO-Q-FF01 + ServiceUUIDs=[19B10000-...].
+    #    Look for the "LEAdvertisement registered" log line.
     python3 -m linux.linux_ble_test --duration 30
 
     # 3. In another terminal, run the Windows test script:
@@ -33,6 +37,9 @@ Typical usage::
     #
     #    Both windows will show aligned timestamped lines that you can
     #    copy-paste side by side to confirm round-trip behaviour.
+    #    The Windows scanner defaults to service-UUID filtering, which
+    #    is the only reliable way to find peripheral-mode devices on
+    #    WinRT.  See windows_ble_test.py --scan-by-uuid for details.
 
     # 4. Drive a longer regression with simulated samples
     python3 -m linux.linux_ble_test --duration 60 --stream-focus --stream-state

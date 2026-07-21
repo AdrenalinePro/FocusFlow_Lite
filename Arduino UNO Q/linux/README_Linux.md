@@ -28,8 +28,9 @@ sudo apt-get install bluez libdbus-1-3
 ```bash
 sudo systemctl enable --now bluetooth
 sudo bluetoothctl power on
-sudo bluetoothctl discoverable on
 ```
+
+`bluetoothctl discoverable on` **不再需要**——`LinuxBLEServer` 在 `start()` 阶段会通过 D-Bus 把 `Discoverable` / `Pairable` 强制设为 `True`，并自动注册一个 `LEAdvertisement1`（携带 `LocalName=UNO-Q-FF01` + FocusFlow service UUID）。Windows / 手机做被动扫描时看到的就是这条 advertisement，不再依赖通用可发现模式的兜底。
 
 UNO Q 端建议在 `/etc/bluetooth/main.conf` 中设置 `ControllerMode = le`，并把 MTU 协商到 244 字节（BLE 5.0 允许的最大 ATT MTU）。Linux 侧只要运行了 `dbus-fast` 注册的 GATT application，BlueZ 会自动协商 MTU。
 
@@ -41,7 +42,7 @@ pip3 install --user --break-system-packages -r linux/requirements-linux.txt
 sudo apt-get install -y bluez libdbus-1-3
 sudo systemctl enable --now bluetooth
 sudo bluetoothctl power on
-sudo bluetoothctl discoverable on
+# 注：discoverable / pairable 现在由 LinuxBLEServer 自动设置，不用手动开
 
 # 2. UNO Q 必须能拥有 com.focusflow 这个 D-Bus 总线名
 sudo tee /etc/dbus-1/system.d/com.focusflow.conf > /dev/null << 'EOF'
@@ -264,7 +265,7 @@ async def shutdown() -> None:
 ## 心跳、重连和错误
 
 * **心跳**：Windows 每 10 秒上行一次。`LinuxBLEServer` 自动用 `send_heartbeat(echo_seq=…)` 回显，无需业务层介入。
-* **重连**：Linux 侧不需要保存连接状态。`RegisterApplication` 成功后持续 `advertise` 即可。Windows 默认每 3 秒重连，单次最多 5 次，主程序可以配置为无限。
+* **重连**：Linux 侧不需要保存连接状态。`LinuxBLEServer.start()` 内部会按顺序：设置 adapter 的 `Powered/Alias/Discoverable/Pairable` → 注册 GATT application → 注册 `LEAdvertisement1`（持续向订阅者推送 `UNO-Q-FF01` + FocusFlow service UUID）。`stop()` 时会反序注销。Windows 默认每 3 秒重连，单次最多 5 次，主程序可以配置为无限。
 * **去重**：服务器内部维护 `SequenceTracker`，重复或回退的 `seq` 会直接丢弃（与 Windows 客户端的策略一致，包括 uint32 回绕）。
 * **错误**：
   - 协议校验失败的 `error` 消息通过 `add_error_handler` 上报（同时也会通过 GATT Notify 推送给 Windows，方便其日志聚合）。
@@ -310,7 +311,7 @@ python windows\windows_ble_test.py --device UNO-Q-FF01 --duration 0
 
 | 日志特征 | 可能原因 |
 |---|---|
-| Linux: `advertising` 但 Windows: `scanning 0 个设备` | BlueZ 未广播 / Windows 蓝牙未启用 / 防火墙挡了 BLE 广播 |
+| Linux: `advertising` 但 Windows: `scanning 0 个设备` | Linux 日志缺 `LEAdvertisement registered`（见 §"广播行为"）/ Windows 蓝牙未启用 / 防火墙挡了 BLE 广播 |
 | Linux: `等待 Windows 客户端订阅 Notify` 超时 | Windows 端 GATT Subscribe 没成功 / CCCD 描述符缺失 |
 | Windows: `RX sync_response` 缺失 | Linux 端没收到 `sync_request` 或 `sync_response` 编码失败 |
 | Linux: `心跳回环 0 次` | Windows 端没收到 `heartbeat` echo_seq 或 Linux 端 echo_seq 字段错误 |
@@ -361,6 +362,40 @@ python3 -m py_compile linux/linux_ble_protocol.py linux/linux_ble_gatt.py \
 ```
 
 实际连接测试需要 UNO Q 正在广播，并建议依次验证：客户端连接成功 → 订阅 Notify → 周期性 heartbeat 双向正常 → `rest_command(start/stop)` 切换状态 → 拔掉 Windows 端后 UNO Q 持续广播等待重连。
+
+## 广播行为
+
+`LinuxBLEServer.start()` 完成后会同时持有以下两个 BlueZ 注册：
+
+| 注册 | 路径 | 作用 |
+|---|---|---|
+| GATT application | `/com/focusflow/app0` | 提供 `service0`（Service）+ `rx`（Write）+ `tx`（Notify）+ `tx/cccd`（CCCD） |
+| LE advertisement | `/com/focusflow/app0/adv0` | GAP 广播帧，携带 `LocalName=UNO-Q-FF01` + `ServiceUUIDs=[19B10000-...]` + `Type=peripheral` |
+
+启动日志里会依次出现：
+
+```
+[INFO] Acquired system bus name 'com.focusflow'
+[INFO] Registered FocusFlow GATT application at /com/focusflow/app0 on /org/bluez/hci0
+[INFO] LEAdvertisement registered on /org/bluez/hci0 (LocalName='UNO-Q-FF01', ServiceUUIDs=[19B10000-E8F2-537E-4F6C-D104768A1214])
+[INFO] FocusFlow BLE server is advertising as 'UNO-Q-FF01'.
+```
+
+**任何一行缺失都会导致 Windows 端扫不到设备**：
+
+- 缺第一行 → `com.focusflow` D-Bus 策略未装（见 §"一次性安装步骤"）。
+- 缺第二行 → `dbus-fast` 补丁未打或 adapter 路径错误（`dev_session.py app` 可查）。
+- 缺第三行 → 别的进程占了 advertisement、adapter 处于 BR/EDR-only、或补丁没生效。
+
+排查工具：
+
+```bash
+# 实时看 BlueZ 树里有没有 com/focusflow 节点
+python3 dev_session.py app
+
+# 如果注册卡住，重置 adapter（先注销旧 advertisement）
+python3 dev_session.py cleanup
+```
 
 ## 已知限制
 
