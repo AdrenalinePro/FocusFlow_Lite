@@ -45,10 +45,13 @@ if __package__ in {None, ""}:
         BleConnectionState,
         WindowsBLEClient,
     )
-    from ble.windows_ble_protocol import SERVICE_UUID  # type: ignore
+    from ble.windows_ble_protocol import (  # type: ignore
+        DISCOVERY_SERVICE_UUID,
+        SERVICE_UUID,
+    )
 else:
     from .windows_ble_client import BleClientConfig, BleConnectionState, WindowsBLEClient
-    from .windows_ble_protocol import SERVICE_UUID
+    from .windows_ble_protocol import DISCOVERY_SERVICE_UUID, SERVICE_UUID
 
 
 CONSOLE_FORMAT = "%(asctime)s.%(msecs)03d [%(levelname)s] %(message)s"
@@ -188,7 +191,7 @@ async def scan_devices(timeout: float, service_uuid: Optional[str] = None) -> in
     """Run a passive BLE scan and log every advertisement we see.
 
     ``service_uuid`` enables bleak's native filter so the scanner only
-    reports devices that advertise the FocusFlow service UUID.  This is
+    reports devices that advertise the requested discovery UUID.  This is
     far more reliable than matching by name on Windows — the device may
     show up as the controller's hostname (e.g. ``arduino-UNO``) instead
     of ``UNO-Q-FF01`` when the Linux adapter's ``Alias`` property is
@@ -508,8 +511,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--scan-only", action="store_true", help="只扫描设备，不建立连接")
     parser.add_argument("--scan-timeout", type=float, default=10.0, help="扫描超时秒数，默认 10")
     parser.add_argument(
-        "--scan-by-uuid", default=SERVICE_UUID,
-        help="按 ServiceUUID 过滤扫描结果（默认 = FocusFlow service UUID）。"
+        "--scan-by-uuid", default=DISCOVERY_SERVICE_UUID,
+        help="按 ServiceUUID 过滤扫描结果（默认 = UNO Q 统一广播 UUID）。"
              "传 'all' 或 'none' 关闭过滤。",
     )
     parser.add_argument("--connect-timeout", type=float, default=10.0, help="单次连接超时秒数，默认 10")

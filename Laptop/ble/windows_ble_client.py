@@ -12,6 +12,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from .windows_ble_protocol import (
+    DISCOVERY_SERVICE_UUID,
     BLEMessage,
     DOWNLINK_TYPES,
     RX_CHARACTERISTIC_UUID,
@@ -219,11 +220,13 @@ class WindowsBLEClient:
         ``UNO-Q-FF01`` LEAdvertisement we register on the Linux side is
         exactly that kind of device, so a plain ``find_device_by_name``
         often times out even though ``BleakScanner.discover`` with a
-        ``service_uuids`` filter finds it instantly.  We therefore:
+        ``service_uuids`` filter finds it instantly.  The unified UNO Q
+        advertisement carries the wristband discovery UUID; the FocusFlow
+        service itself is discovered after the connection.  We therefore:
 
-        1. Try a name match **with** the FocusFlow service UUID as an
+        1. Try a name match **with** the shared discovery UUID as an
            advertisement filter (the form that actually works on WinRT).
-        2. If that fails, run a service-UUID-filtered discovery and pick
+        2. If that fails, run a discovery-UUID-filtered scan and pick
            the first candidate.  This covers the case where the Linux
            adapter's ``Alias`` property is something other than
            ``UNO-Q-FF01`` (e.g. ``arduino-UNO``) — the LEAdvertisement's
@@ -239,7 +242,7 @@ class WindowsBLEClient:
         try:
             found = await scanner.find_device_by_name(
                 device, timeout=self.config.scan_timeout,
-                service_uuids=[SERVICE_UUID],
+                service_uuids=[DISCOVERY_SERVICE_UUID],
             )
             if found is not None:
                 return found
@@ -256,20 +259,22 @@ class WindowsBLEClient:
         try:
             candidates = await scanner.discover(
                 timeout=self.config.scan_timeout,
-                service_uuids=[SERVICE_UUID],
+                service_uuids=[DISCOVERY_SERVICE_UUID],
             )
         except TypeError:
             candidates = await scanner.discover(timeout=self.config.scan_timeout)
         for candidate in candidates:
             metadata = getattr(candidate, "metadata", None)
             uuids = (getattr(metadata, "uuids", None) or []) if metadata else []
-            if any(str(u).lower() == SERVICE_UUID.lower() for u in uuids):
+            if any(
+                str(u).lower() == DISCOVERY_SERVICE_UUID.lower() for u in uuids
+            ):
                 if candidate.name and candidate.name != device:
                     self.logger.info(
                         "未按名称 %r 匹配到设备，但 %s 正在广播 %s，"
                         "已改用此设备（通常是 Linux adapter 的 Alias "
                         "覆盖了 LEAdvertisement 的 LocalName）",
-                        device, candidate.address, SERVICE_UUID,
+                        device, candidate.address, DISCOVERY_SERVICE_UUID,
                     )
                 return candidate
 

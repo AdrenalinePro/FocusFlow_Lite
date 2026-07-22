@@ -1,0 +1,12 @@
+# Extra Python packages required by the FocusFlow integration that are
+# NOT pulled in by the standard Arduino App Lab image.  The Linux BLE
+# GATT server needs dbus-fast, the wristband GATT server uses
+# dbus-next, and we rely on the system BlueZ for the actual radio.
+
+# The two BLE stacks MUST be kept on separate pins of dbus-*; mixing
+# them in one process is the most common cause of "GATT application
+# silently dropped" failures — see source_code/linux/setup_dbus_fast.sh
+# for the rationale.
+dbus-fast>=1.83,<2.0
+jeepney>=0.8,<1.0
+dbus-next>=0.2,<0.3

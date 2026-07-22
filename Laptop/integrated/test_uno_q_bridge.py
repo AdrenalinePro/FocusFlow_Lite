@@ -56,6 +56,34 @@ class DecisionPayloadTests(unittest.TestCase):
 
 
 class UnoQPreDiscoveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_default_scan_uses_unified_advertisement_uuid(self):
+        published = []
+
+        async def publish(message):
+            published.append(message)
+
+        device = SimpleNamespace(name="UNO-Q-FF01", address="14:B5:CD:F1:F4:AF")
+        advertisement = SimpleNamespace(
+            local_name="UNO-Q-FF01",
+            service_uuids=["7b3a0001-6a4f-4d91-9c10-123456789000"],
+        )
+
+        class FakeScanner:
+            @classmethod
+            async def find_device_by_filter(cls, predicate, **kwargs):
+                self.assertEqual(kwargs["service_uuids"], advertisement.service_uuids)
+                return device if predicate(device, advertisement) else None
+
+        bridge = UnoQBridge(
+            Path(__file__).parent.parent,
+            device="UNO-Q-FF01",
+            publisher=publish,
+        )
+        found = await bridge.pre_discover(scanner_cls=FakeScanner)
+
+        self.assertTrue(found)
+        self.assertIs(bridge.resolved_device, device)
+
     async def test_caches_service_filtered_device_before_headband(self):
         published = []
 

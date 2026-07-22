@@ -1,0 +1,12 @@
+# Arduino App Lab build profile for the FocusFlow integration app.
+# Drives an ILI9341V TFT on the STM32U585 (UNO Q MCU) side and exchanges
+# commands with the Linux MPU side via Arduino_RouterBridge.
+profiles:
+  default:
+    platforms:
+      - platform: arduino:zephyr
+    libraries:
+      - Adafruit BusIO (1.17.4)
+      - Adafruit GFX Library (1.12.6)
+      - Adafruit ILI9341 (1.6.3)
+default_profile: default

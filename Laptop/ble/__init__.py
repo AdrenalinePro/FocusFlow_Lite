@@ -6,6 +6,7 @@ or :class:`WindowsBLEClientThread` for PyQt5 applications.
 """
 
 from .windows_ble_protocol import (
+    DISCOVERY_SERVICE_UUID,
     MAX_JSON_BYTES,
     RX_CHARACTERISTIC_UUID,
     SERVICE_UUID,
@@ -24,6 +25,7 @@ from .windows_ble_client import (
 
 __all__ = [
     "MAX_JSON_BYTES",
+    "DISCOVERY_SERVICE_UUID",
     "RX_CHARACTERISTIC_UUID",
     "SERVICE_UUID",
     "TX_CHARACTERISTIC_UUID",

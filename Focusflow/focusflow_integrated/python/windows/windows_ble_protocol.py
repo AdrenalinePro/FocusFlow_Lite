@@ -14,9 +14,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Sequence, Set
 
 SERVICE_UUID = "19B10000-E8F2-537E-4F6C-D104768A1214"
-# The UNO Q exposes the FocusFlow and wristband GATT applications through one
-# physical peripheral.  Its single advertisement carries the wristband UUID;
-# after connecting, Windows discovers and uses SERVICE_UUID below as usual.
 DISCOVERY_SERVICE_UUID = "7b3a0001-6a4f-4d91-9c10-123456789000"
 RX_CHARACTERISTIC_UUID = "19B10001-E8F2-537E-4F6C-D104768A1214"
 TX_CHARACTERISTIC_UUID = "19B10002-E8F2-537E-4F6C-D104768A1214"

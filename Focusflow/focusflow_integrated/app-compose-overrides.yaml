@@ -1,0 +1,18 @@
+name: focusflow_integrated
+services:
+  main:
+    volumes:
+      - type: bind
+        source: /run/dbus
+        target: /run/dbus
+        read_only: true
+      - type: bind
+        source: /var/run/dbus
+        target: /var/run/dbus
+        read_only: true
+      - type: bind
+        source: /sys/class/bluetooth
+        target: /sys/class/bluetooth
+        read_only: true
+    devices:
+      - /dev/bluetooth

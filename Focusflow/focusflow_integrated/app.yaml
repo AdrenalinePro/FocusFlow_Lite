@@ -1,0 +1,16 @@
+# Arduino App Lab manifest for the FocusFlow integration.
+#
+# No Bricks are used: this App is a pure orchestrator that wires the
+# Linux-side BLE stacks (notebook + wristband) to the STM32 sketch via
+# Arduino_RouterBridge.  The TFT UI lives entirely in sketch/.
+name: FocusFlow Integrated
+icon: 🎯
+description: >
+  FocusFlow focus-monitoring integration on the UNO Q.  Receives
+  Windows-laptop focus updates over BLE GATT, drives the ILI9341V TFT
+  via the STM32 sketch, and pulses the ESP32-C3 wristband on state
+  transitions (走神 / 摸鱼 3×40, rest start 1×40, rest end 2×40).
+
+# Expose no network ports — BLE is the only interface.
+ports: []
+bricks: []

@@ -140,9 +140,9 @@ class UnoQBridge:
 
             scanner_cls = BleakScanner
         if service_uuid is None:
-            from ble.windows_ble_protocol import SERVICE_UUID
+            from ble.windows_ble_protocol import DISCOVERY_SERVICE_UUID
 
-            service_uuid = SERVICE_UUID
+            service_uuid = DISCOVERY_SERVICE_UUID
 
         await self._publish_status(state="pre_scanning")
         target = self.device.casefold()
