@@ -319,13 +319,6 @@ async def run(args: argparse.Namespace) -> None:
     uno_bridge = None
     uno_forward_task = None
     try:
-        # Finish Windows BLE/GATT setup before importing and starting MediaPipe.
-        # Camera work can otherwise delay WinRT callbacks during the handshake.
-        print("先连接 Flowtime，连接成功后再启动摄像头和屏幕检测...")
-        eeg_task = asyncio.create_task(eeg_reader.main())
-        await wait_for_eeg_connection(eeg_reader, eeg_task)
-        print("Flowtime BLE 已就绪，正在启动摄像头和屏幕检测...")
-
         if not args.no_uno:
             from uno_q_bridge import UnoQBridge
 
@@ -334,10 +327,31 @@ async def run(args: argparse.Namespace) -> None:
                 device=args.uno_device,
                 publisher=partial(publish_context, eeg_reader),
             )
+            print(f"正在头环连接前预扫描 UNO Q：{args.uno_device}...")
+            if not await uno_bridge.pre_discover():
+                raise SystemExit(
+                    "未发现 UNO Q 的 FocusFlow BLE 广播。请先启动 UNO Q 服务端，"
+                    "或使用 --no-uno 仅调试电脑端。"
+                )
+            cached = uno_bridge.resolved_device
+            print(
+                "UNO Q 已缓存："
+                f"{getattr(cached, 'name', args.uno_device)} "
+                f"({getattr(cached, 'address', '地址未知')})"
+            )
+
+        # Finish Windows BLE/GATT setup before importing and starting MediaPipe.
+        # Camera work can otherwise delay WinRT callbacks during the handshake.
+        print("先连接 Flowtime，连接成功后再启动摄像头和屏幕检测...")
+        eeg_task = asyncio.create_task(eeg_reader.main())
+        await wait_for_eeg_connection(eeg_reader, eeg_task)
+        print("Flowtime BLE 已就绪，正在启动摄像头和屏幕检测...")
+
+        if uno_bridge is not None:
             await uno_bridge.start()
             uno_forward_task = asyncio.create_task(uno_bridge.forward_loop(eeg_reader))
             print(
-                f"UNO Q 桥接已启动：正在后台连接 {args.uno_device}；"
+                f"UNO Q 桥接已启动：使用预扫描设备直连 {args.uno_device}；"
                 "连接后每秒发送一次 decision_update"
             )
         else:

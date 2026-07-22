@@ -7,7 +7,6 @@ import asyncio
 import logging
 from pathlib import Path
 import sys
-import time
 from typing import Any, Awaitable, Callable, Optional
 
 
@@ -87,8 +86,13 @@ class UnoQBridge:
         self.device = device
         self.publisher = publisher
         self.client: Any = None
+        self._resolved_device: Any = None
         self._client_task: Optional[asyncio.Task] = None
         self._stop = asyncio.Event()
+
+    @property
+    def resolved_device(self) -> Any:
+        return self._resolved_device
 
     async def _publish_status(self, *, state: str, error: Optional[str] = None) -> None:
         message = {
@@ -115,6 +119,75 @@ class UnoQBridge:
             "data": message.data,
         })
 
+    async def pre_discover(
+        self,
+        *,
+        timeout: float = 12.0,
+        scanner_cls: Any = None,
+        service_uuid: Optional[str] = None,
+    ) -> bool:
+        """Scan UNO Q before the headband connection and cache its BLEDevice.
+
+        On some Windows adapters, starting a new advertisement scan while a
+        high-rate GATT notification stream is active is unreliable. Keeping
+        the concrete BLEDevice lets Bleak connect later without an implicit
+        second scan.
+        """
+        if str(self.camera_dir) not in sys.path:
+            sys.path.insert(0, str(self.camera_dir))
+        if scanner_cls is None:
+            from bleak import BleakScanner
+
+            scanner_cls = BleakScanner
+        if service_uuid is None:
+            from ble.windows_ble_protocol import SERVICE_UUID
+
+            service_uuid = SERVICE_UUID
+
+        await self._publish_status(state="pre_scanning")
+        target = self.device.casefold()
+        expected_service = service_uuid.casefold()
+
+        def matches(device: Any, advertisement: Any) -> bool:
+            names = {
+                str(getattr(device, "name", "") or "").casefold(),
+                str(getattr(advertisement, "local_name", "") or "").casefold(),
+                str(getattr(device, "address", "") or "").casefold(),
+            }
+            services = {
+                str(value).casefold()
+                for value in (getattr(advertisement, "service_uuids", None) or ())
+            }
+            # The scanner is already service-filtered. Accept the UUID match
+            # even when BlueZ's adapter Alias hides the advertised LocalName.
+            return target in names or expected_service in services
+
+        try:
+            self._resolved_device = await scanner_cls.find_device_by_filter(
+                matches,
+                timeout=timeout,
+                service_uuids=[service_uuid],
+            )
+        except Exception as exc:
+            await self._publish_status(state="pre_scan_error", error=str(exc))
+            LOGGER.warning("UNO Q pre-scan failed: %s", exc)
+            return False
+
+        if self._resolved_device is None:
+            await self._publish_status(
+                state="not_found",
+                error=f"未发现广播 {service_uuid} 的 UNO Q",
+            )
+            return False
+
+        LOGGER.info(
+            "UNO Q cached before headband connection: %s (%s)",
+            getattr(self._resolved_device, "name", None),
+            getattr(self._resolved_device, "address", None),
+        )
+        await self._publish_status(state="cached")
+        return True
+
     async def start(self) -> None:
         if str(self.camera_dir) not in sys.path:
             sys.path.insert(0, str(self.camera_dir))
@@ -124,7 +197,16 @@ class UnoQBridge:
         # Protocol v1.1 addition. Older teammate firmware must update both its
         # UPLINK_TYPES set and validate_data() before it can accept this type.
         install_decision_protocol(windows_ble_protocol)
-        self.client = WindowsBLEClient(BleClientConfig(
+        if self._resolved_device is None:
+            raise RuntimeError("UNO Q must be pre-discovered before connecting")
+
+        resolved_device = self._resolved_device
+
+        class CachedDeviceBLEClient(WindowsBLEClient):
+            async def _resolve_device(client_self, scanner: Any) -> Any:
+                return resolved_device
+
+        self.client = CachedDeviceBLEClient(BleClientConfig(
             device=self.device,
             max_reconnect_attempts=None,
             reconnect_delay=3.0,

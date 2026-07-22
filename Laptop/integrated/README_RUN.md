@@ -106,8 +106,12 @@ $env:MINIMAX_API_KEY="..."
 ```
 
 The launcher now connects to BLE device `UNO-Q-FF01` after the Flowtime link is
-ready and forwards one `decision_update` per second. Use a different advertised
-name/address or disable the bridge during laptop-only debugging with:
+ready and forwards one `decision_update` per second. To avoid Windows adapters
+that cannot scan reliably during an existing GATT notification stream, startup
+first scans and caches the UNO Q `BLEDevice`, then connects Flowtime, and finally
+connects the cached UNO Q without another scan. Keep UNO Q powered and advertising
+before starting the launcher. Use a different advertised name/address or disable
+the bridge during laptop-only debugging with:
 
 ```powershell
 .\run_integrated.cmd --uno-device "UNO-Q-FF01"
