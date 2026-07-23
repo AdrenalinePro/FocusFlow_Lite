@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from uno_q_bridge import UnoQBridge, decision_payload, install_decision_protocol
 
@@ -56,55 +57,42 @@ class DecisionPayloadTests(unittest.TestCase):
 
 
 class UnoQPreDiscoveryTests(unittest.IsolatedAsyncioTestCase):
-    async def test_caches_service_filtered_device_before_headband(self):
+    async def test_resolves_serial_port(self):
         published = []
 
         async def publish(message):
             published.append(message)
 
-        device = SimpleNamespace(name="arduino-UNO", address="14:B5:CD:F1:F4:AF")
-        advertisement = SimpleNamespace(
-            local_name=None,
-            service_uuids=["19B10000-E8F2-537E-4F6C-D104768A1214"],
-        )
+        bridge = UnoQBridge(Path(__file__).parent, device="COM3", publisher=publish)
 
-        class FakeScanner:
-            @classmethod
-            async def find_device_by_filter(cls, predicate, **kwargs):
-                self.assertEqual(kwargs["service_uuids"], advertisement.service_uuids)
-                return device if predicate(device, advertisement) else None
+        async def fake_resolve(preferred=None):
+            return preferred or "COM3"
 
-        bridge = UnoQBridge(Path(__file__).parent, device="UNO-Q-FF01", publisher=publish)
-        found = await bridge.pre_discover(
-            scanner_cls=FakeScanner,
-            service_uuid=advertisement.service_uuids[0],
-        )
+        with patch("serial_protocol.auto_resolve_port", side_effect=fake_resolve):
+            found = await bridge.pre_discover()
 
         self.assertTrue(found)
-        self.assertIs(bridge.resolved_device, device)
-        self.assertEqual(published[0]["state"], "pre_scanning")
-        self.assertEqual(published[-1]["state"], "cached")
+        self.assertEqual(bridge.device, "COM3")
+        self.assertEqual(published[0]["state"], "resolving")
+        self.assertEqual(published[-1]["state"], "resolved")
 
-    async def test_reports_not_found_without_starting_late_scan(self):
+    async def test_reports_error_on_resolution_failure(self):
         published = []
 
         async def publish(message):
             published.append(message)
 
-        class EmptyScanner:
-            @classmethod
-            async def find_device_by_filter(cls, predicate, **kwargs):
-                return None
+        bridge = UnoQBridge(Path(__file__).parent, device="COM99", publisher=publish)
 
-        bridge = UnoQBridge(Path(__file__).parent, device="UNO-Q-FF01", publisher=publish)
-        found = await bridge.pre_discover(
-            scanner_cls=EmptyScanner,
-            service_uuid="19B10000-E8F2-537E-4F6C-D104768A1214",
-        )
+        async def fake_resolve(preferred=None):
+            raise RuntimeError("port not found")
+
+        with patch("serial_protocol.auto_resolve_port", side_effect=fake_resolve):
+            found = await bridge.pre_discover()
 
         self.assertFalse(found)
-        self.assertIsNone(bridge.resolved_device)
-        self.assertEqual(published[-1]["state"], "not_found")
+        self.assertEqual(published[-1]["state"], "error")
+        self.assertIn("port not found", published[-1]["error"])
 
 
 if __name__ == "__main__":

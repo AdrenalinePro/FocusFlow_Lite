@@ -51,9 +51,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument(
-        "--uno-device",
-        default=os.environ.get("UNO_Q_DEVICE", "UNO-Q-FF01"),
-        help="UNO Q 的蓝牙名称或 MAC 地址（默认：UNO-Q-FF01）",
+        "port",
+        nargs="?",
+        default=os.environ.get("UNO_Q_DEVICE"),
+        help="UNO Q 的串口号（如 COM9）；省略则自动探测 Arduino 设备",
     )
     parser.add_argument(
         "--no-uno",
@@ -80,7 +81,8 @@ def ensure_module_paths(camera_dir: Path, *, require_uno: bool = True) -> None:
     required = [camera_dir / "eye_tracker.py", camera_dir / "screen_monitor.py"]
     if require_uno:
         required.extend([
-            camera_dir / "ble" / "windows_ble_client.py",
+            camera_dir / "serial_client.py",
+            camera_dir / "serial_protocol.py",
             camera_dir / "ble" / "windows_ble_protocol.py",
         ])
     missing = [str(path) for path in required if not path.is_file()]
@@ -324,21 +326,16 @@ async def run(args: argparse.Namespace) -> None:
 
             uno_bridge = UnoQBridge(
                 camera_dir,
-                device=args.uno_device,
+                device=args.port,
                 publisher=partial(publish_context, eeg_reader),
             )
-            print(f"正在头环连接前预扫描 UNO Q：{args.uno_device}...")
+            print(f"正在解析 UNO Q 串口：{args.port or '自动探测'}...")
             if not await uno_bridge.pre_discover():
                 raise SystemExit(
-                    "未发现 UNO Q 的 FocusFlow BLE 广播。请先启动 UNO Q 服务端，"
+                    "未找到 UNO Q 串口设备。请确认 UNO Q 已通过 USB 连接，"
                     "或使用 --no-uno 仅调试电脑端。"
                 )
-            cached = uno_bridge.resolved_device
-            print(
-                "UNO Q 已缓存："
-                f"{getattr(cached, 'name', args.uno_device)} "
-                f"({getattr(cached, 'address', '地址未知')})"
-            )
+            print(f"UNO Q 串口已解析：{uno_bridge.device}")
 
         # Finish Windows BLE/GATT setup before importing and starting MediaPipe.
         # Camera work can otherwise delay WinRT callbacks during the handshake.
@@ -351,8 +348,8 @@ async def run(args: argparse.Namespace) -> None:
             await uno_bridge.start()
             uno_forward_task = asyncio.create_task(uno_bridge.forward_loop(eeg_reader))
             print(
-                f"UNO Q 桥接已启动：使用预扫描设备直连 {args.uno_device}；"
-                "连接后每秒发送一次 decision_update"
+                f"UNO Q 串口桥接已启动：{uno_bridge.device}；"
+                "每秒发送一次 decision_update"
             )
         else:
             print("UNO Q 桥接已禁用（--no-uno）")

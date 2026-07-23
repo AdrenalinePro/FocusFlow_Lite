@@ -1,6 +1,9 @@
 -r requirements_pc.txt
 -r requirements.txt
 
+# USB serial communication with UNO Q (replaces BLE GATT).
+pyserial>=3.5
+
 # GitHub Laptop camera and screen modules.
 opencv-python>=4.8.0
 mediapipe>=0.10.0
